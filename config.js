@@ -61,5 +61,5 @@ window.TSC_CONFIG = {
   // ---- Backend (Supabase). Leave empty until you have followed DEPLOY.md ----
   // While empty, forms open the visitor's email app instead of storing records,
   // and the site tells the visitor so. Nothing pretends to be saved.
-  supabase: { url: "", anonKey: "" }
+  supabase: { url: "https://kniksxocjsuqghydipmg.supabase.co", anonKey: "sb_publishable_d_CZpD5xT8TPeg10c07Jog_QoqJ_qan" }
 };

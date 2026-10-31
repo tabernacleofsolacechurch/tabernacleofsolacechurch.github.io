@@ -51,7 +51,7 @@ function waBtn(text, msg, cls){ var a = h("a", { "class": "btn " + (cls || "btn-
 /* ---------- data layer ---------- */
 function sbFetch(path, opts){
   opts = opts || {};
-  var headers = Object.assign({ apikey: CFG.supabase.anonKey, Authorization: "Bearer " + CFG.supabase.anonKey }, opts.headers || {});
+  var headers = { apikey: CFG.supabase.anonKey }; if (String(CFG.supabase.anonKey).indexOf("eyJ") === 0) headers.Authorization = "Bearer " + CFG.supabase.anonKey; Object.assign(headers, opts.headers || {});
   return fetch(CFG.supabase.url.replace(/\/$/, "") + "/rest/v1/" + path, { method: opts.method || "GET", headers: headers, body: opts.body }).then(function(r){
     if (!r.ok) return r.text().then(function(t){ var e = new Error(t || ("HTTP " + r.status)); e.status = r.status; throw e; });
     if (r.status === 204) return null;
