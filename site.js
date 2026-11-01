@@ -152,7 +152,8 @@ function progCard(p){
     h("div", { "class": "actions" }, actions)
   ]);
 }
-function upcoming(list){ var now = new Date(); return (list || []).filter(function(p){ return new Date(p.end_at || p.start_at) >= now; }).sort(function(a, b){ return new Date(a.start_at) - new Date(b.start_at); }); }
+function endOf(p){ var s = new Date(p.start_at), e = p.end_at ? new Date(p.end_at) : null; return (e && e >= s) ? e : new Date(s.getTime() + 3 * 3600000); }
+function upcoming(list){ var now = new Date(); return (list || []).filter(function(p){ return endOf(p) >= now; }).sort(function(a, b){ return new Date(a.start_at) - new Date(b.start_at); }); }
 function getProgrammes(){ return dbList("programmes", "status=eq.published&select=*&order=start_at.asc", (CNT.programmes || []).filter(function(p){ return p.status !== "draft"; })); }
 function getDevos(ymd){ return dbList("devotionals", "status=eq.published&publish_date=lte." + ymd + "&select=*&order=publish_date.desc&limit=400", (CNT.devotionals || []).filter(function(d){ return d.publish_date <= ymd; }).sort(function(a, b){ return a.publish_date < b.publish_date ? 1 : -1; })); }
 function getSermons(){ return dbList("sermons", "status=eq.published&select=*&order=preached_on.desc&limit=200", (CNT.sermons || []).slice().sort(function(a, b){ return a.preached_on < b.preached_on ? 1 : -1; })); }

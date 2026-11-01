@@ -208,6 +208,7 @@ function editor(m, row, reload){
     e.preventDefault(); clear(status); var data;
     try { data = collect(); } catch(err) { status.appendChild(msg("err", err.message)); return; }
     if (m.id === "finance" && data.verified && !(row && row.verified)) data.verified_by = session.user.id; if (m.id === "finance" && !data.verified) data.verified_by = null;
+    if (m.id === "programmes" && data.start_at && data.end_at && data.end_at <= data.start_at) { status.appendChild(msg("err", "The end time must be after the start time. Please correct it, or leave the end time empty.")); return; }
     if (m.id === "settings") data = { key: isNew ? data.key : row.key, value: data.value };
     save.disabled = true;
     var p = isNew ? api(m.table, { method: "POST", body: data, headers: { Prefer: "return=minimal" } }) : api(m.table + "?" + ids + "=eq." + encodeURIComponent(row[ids]), { method: "PATCH", body: data, headers: { Prefer: "return=minimal" } });
