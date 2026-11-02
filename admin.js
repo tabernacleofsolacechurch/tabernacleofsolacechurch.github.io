@@ -77,8 +77,14 @@ var MODULES = [
    fields: [["publish_date", "Publication date", "date", { required: true, help: "A future date schedules it. It appears on that day (Nigeria time) once Published." }], ["title", "Title", "text", { required: true }], ["scripture_ref", "Key scripture reference", "text"], ["scripture_text", "Scripture text (only if you have permission for the translation)", "textarea"], ["message", "Main message", "textarea", { required: true }], ["application", "Practical application", "textarea"], ["reflection", "Reflection question", "textarea"], ["prayer", "Closing prayer", "textarea"], ["related_reading", "Related reading (a passage reference)", "text"], ["category", "Category", "text"], ["status", "Status", "select", { options: statusOpts(["draft", "published", "archived"]) }]] },
  { id: "plan", label: "Bible reading plan", table: "reading_plan_overrides", roles: ["content_editor"], order: "day.asc", cols: [["day", "Day"], ["ot_text", "Old Testament"], ["other_text", "Psalms, Proverbs, New Testament"], ["active", "Active", function(v){ return badge(v ? "yes" : "no"); }]], create: true, remove: true, intro: "The website already contains a verified 365-day plan covering all 1,189 chapters. Use this only to replace the reading for a particular day. Leave a field blank to keep the standard reading.",
    fields: [["day", "Day number (1 to 365)", "number", { required: true, createOnly: true }], ["ot_text", "Old Testament reading", "text"], ["other_text", "Psalms, Proverbs and New Testament reading", "text"], ["note", "Note", "text"], ["active", "Active", "bool"]] },
- { id: "sermons", label: "Sermons and teachings", table: "sermons", roles: ["content_editor"], order: "preached_on.desc", cols: [["preached_on", "Date", fmtD], ["title", "Title"], ["speaker", "Speaker"], ["status", "Status", badge]], statusField: "status", statuses: function(){ return ["draft", "published", "archived"]; }, search: ["title", "speaker", "category"], create: true, remove: true, actions: PUB,
+ { id: "sermons", label: "Sermons (video links)", table: "sermons", roles: ["content_editor"], beforeDelete: sermonCleanup, order: "preached_on.desc", cols: [["preached_on", "Date", fmtD], ["title", "Title"], ["speaker", "Speaker"], ["status", "Status", badge]], statusField: "status", statuses: function(){ return ["draft", "published", "archived"]; }, search: ["title", "speaker", "category"], create: true, remove: true, actions: PUB,
    fields: [["title", "Title", "text", { required: true }], ["speaker", "Speaker", "text"], ["preached_on", "Date", "date"], ["category", "Category", "text", { help: "e.g. Biblical Teaching, Prayer, Discipleship, Restoration, Christian Living, Family and Relationships, Spiritual Growth" }], ["scripture_refs", "Scripture references", "text"], ["description", "Description", "textarea"], ["video_url", "Video link (YouTube link will be embedded)", "text"], ["audio_url", "Audio link", "text"], ["transcript", "Transcript", "textarea"], ["featured", "Featured", "bool"], ["status", "Status", "select", { options: statusOpts(["draft", "published", "archived"]) }]] },
+ { id: "audio", label: "Audio messages", table: "sermons", roles: ["content_editor"], baseFilter: "audio_path=not.is.null", order: "published_at.desc.nullslast,created_at.desc", beforeDelete: sermonCleanup, create: true, remove: true, actions: PUB, preview: false, search: ["title", "speaker", "category", "description"], statusField: "status", statuses: function(){ return ["draft", "published", "archived"]; }, filterBy: { label: "Category", table: "audio_categories", field: "category_id", text: "name", query: "select=id,name&order=sort.asc" },
+   cols: [["published_at", "Published", fmtDT], ["title", "Title"], ["speaker", "Speaker"], ["category", "Category"], ["duration_seconds", "Length", function(v){ return v ? fmtDur(v) : ""; }], ["status", "Status", badge], ["allow_download", "Download", function(v){ return v ? "Yes" : "No"; }], ["play_count", "Plays"]],
+   intro: "Upload sermons and teachings straight from your phone. Keep each file under 50 MB (about 60 to 90 minutes at 64 kbps mono). Published messages appear on the Audio Library page immediately.",
+   fields: [["audio", "Audio file", "audiofile"], ["title", "Message title", "text", { required: true }], ["description", "Short description", "textarea"], ["speaker", "Speaker or preacher", "text"], ["preached_on", "Date recorded or preached", "date"], ["category_id", "Category", "category"], ["cover", "Cover image (optional)", "cover"], ["scripture_refs", "Scripture references", "text"], ["series", "Series or collection (optional)", "text"], ["featured", "Featured message", "bool"], ["allow_download", "Allow visitors to download this message", "bool"], ["status", "Status", "select", { options: statusOpts(["draft", "published", "archived"]) }]] },
+ { id: "audiocats", label: "Audio categories", table: "audio_categories", roles: ["content_editor"], order: "sort.asc", cols: [["sort", "Order"], ["name", "Category"], ["active", "Active", function(v){ return badge(v ? "yes" : "no"); }]], create: true, remove: true, intro: "Add or rename categories. Renaming updates the category name on existing messages. A category in use cannot be removed without first moving its messages (messages keep working if it is removed).",
+   fields: [["name", "Category name", "text", { required: true }], ["sort", "Display order (1 = first)", "number"], ["active", "Active (shown on the website)", "bool"]] },
  { id: "gallery", label: "Gallery", table: "gallery_items", roles: ["content_editor"], order: "created_at.desc", cols: [["created_at", "Added", fmtDT], ["caption", "Caption"], ["category", "Category"], ["status", "Status", badge]], statusField: "status", statuses: function(){ return ["draft", "published", "archived"]; }, search: ["caption", "category", "event_name"], create: true, remove: true, actions: PUB, intro: "Only upload authentic TSC photographs. Obtain permission before publishing identifiable photographs, especially of children. Images are resized automatically for fast loading.",
    fields: [["image_url", "Photograph", "upload", { required: true, folder: "gallery", thumb: "thumb_url" }], ["caption", "Caption", "text"], ["alt_text", "Description for screen readers", "text", { help: "Describe what the photograph shows." }], ["category", "Category", "text"], ["event_name", "Event name", "text"], ["event_date", "Event date", "date"], ["featured", "Featured", "bool"], ["sort", "Sort order", "number"], ["status", "Status", "select", { options: statusOpts(["draft", "published", "archived"]) }]] },
  { id: "lessons", label: "New believers' lessons", roles: ["content_editor"], special: "lessons" },
@@ -133,6 +139,38 @@ function dashboard(main){
 }
 function lessonsInfo(main){ main.appendChild(h("h1", { text: "New believers' lessons" })); main.appendChild(h("div", { "class": "panel" }, [h("p", { text: "The twelve lessons are stored in the website file lessons.js, so they are reviewed and published together with the site. To edit a lesson, edit that file in GitHub and commit the change. Database-managed lessons can be added later if the church needs non-technical editing of lessons." }), h("p", { text: "Lesson progress is saved on each learner's own device. Walk-with-me requests appear under Walk-with-me requests." }), h("a", { "class": "btn", href: "new-believers.html", text: "Open the lessons" })])); }
 
+
+/* ---------- audio helpers ---------- */
+var AUDIO_EXT = { mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", oga: "audio/ogg" };
+var MAX_AUDIO = 52428800;
+function uuid(){ if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c){ var r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); }); }
+function fmtBytes(n){ n = Number(n) || 0; return n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB"; }
+function fmtDur(sec){ sec = Math.max(0, Math.round(Number(sec) || 0)); var hh = Math.floor(sec / 3600), mm = Math.floor((sec % 3600) / 60), ss = sec % 60; return (hh ? hh + ":" + (mm < 10 ? "0" : "") + mm : String(mm)) + ":" + (ss < 10 ? "0" : "") + ss; }
+function fileExt(name){ var m = /\.([A-Za-z0-9]+)$/.exec(name || ""); return m ? m[1].toLowerCase() : ""; }
+function safeName(name){ var base = String(name || "audio").replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "audio"; return base + "." + fileExt(name); }
+function encPath(p){ return p.split("/").map(encodeURIComponent).join("/"); }
+function publicUrl(path){ return SBU + "/storage/v1/object/public/sermon-audio/" + encPath(path); }
+function xhrUpload(path, blob, type, onProgress){
+  return ensureFresh().then(function(){ return new Promise(function(resolve, reject){
+    var x = new XMLHttpRequest(); x.open("POST", SBU + "/storage/v1/object/sermon-audio/" + encPath(path));
+    x.setRequestHeader("apikey", KEY); x.setRequestHeader("Authorization", "Bearer " + session.access_token); x.setRequestHeader("Content-Type", type); x.setRequestHeader("cache-control", "max-age=31536000"); x.setRequestHeader("x-upsert", "false");
+    x.upload.onprogress = function(e){ if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = function(){ if (x.status >= 200 && x.status < 300) resolve(publicUrl(path)); else { var m = x.responseText; try { m = JSON.parse(x.responseText).message || m; } catch(e){} reject(new Error("Upload failed (" + x.status + "): " + m)); } };
+    x.onerror = function(){ reject(new Error("The upload was interrupted. Please check your internet connection and try again.")); };
+    x.ontimeout = function(){ reject(new Error("The upload took too long. Please try again on a stronger connection.")); };
+    x.timeout = 20 * 60 * 1000; x.send(blob);
+  }); });
+}
+function storageDelete(path){
+  if (!path) return Promise.resolve();
+  if (!/^(audio\/[0-9a-f-]{36}\/[^\/]+|covers\/[0-9a-f-]{36}\.[a-z]+)$/i.test(path)) return Promise.reject(new Error("Refused to delete an unexpected file path."));
+  return ensureFresh().then(function(){ return fetch(SBU + "/storage/v1/object/sermon-audio/" + encPath(path), { method: "DELETE", headers: { apikey: KEY, Authorization: "Bearer " + session.access_token } }); }).then(function(r){ if (r.ok || r.status === 404) return; return r.text().then(function(t){ throw new Error("Could not delete the stored file: " + t); }); });
+}
+function readDuration(file){ return new Promise(function(res){ var u = URL.createObjectURL(file), a = document.createElement("audio"), done = false; function fin(v){ if (done) return; done = true; try { URL.revokeObjectURL(u); } catch(e){} res(v); } a.preload = "metadata"; a.onloadedmetadata = function(){ fin(isFinite(a.duration) ? Math.round(a.duration) : null); }; a.onerror = function(){ fin(null); }; setTimeout(function(){ fin(null); }, 10000); a.src = u; }); }
+var audioCats = null;
+function loadAudioCats(){ if (audioCats) return Promise.resolve(audioCats); return api("audio_categories?select=id,name&order=sort.asc").then(function(r){ audioCats = r || []; return audioCats; }).catch(function(){ return []; }); }
+function sermonCleanup(row){ return Promise.all([storageDelete(row.audio_path), storageDelete(row.thumbnail_path)]); }
+
 /* ---------- generic list view ---------- */
 function listView(main, m){
   main.appendChild(h("h1", { text: m.label })); if (m.intro) main.appendChild(h("p", { text: m.intro, style: "color:var(--muted);max-width:760px" }));
@@ -155,21 +193,73 @@ function listView(main, m){
     var tb = h("tbody"); filtered.slice(0, 500).forEach(function(r){ var tr = h("tr", { "class": m.readOnly ? "" : "row", tabindex: m.readOnly ? null : "0" }, m.cols.map(function(c){ var v = r[c[0]], out = c[2] ? c[2](v, r) : (v == null ? "" : String(v)); return h("td", null, [out && out.nodeType ? out : (out === undefined ? "" : String(out))]); })); if (!m.readOnly) { tr.addEventListener("click", function(){ editor(m, r, load); }); tr.addEventListener("keydown", function(e){ if (e.key === "Enter") editor(m, r, load); }); } tb.appendChild(tr); });
     box.appendChild(h("div", { "class": "tablewrap" }, [h("table", null, [h("thead", null, [thead]), tb])])); if (filtered.length > 500) box.appendChild(h("p", { "class": "help", text: "Showing the first 500 of " + filtered.length + ". Use search or filters, or export CSV for everything." }));
   }
-  function load(){ clear(box); box.appendChild(h("p", { text: "Loading\u2026" })); api(m.table + "?select=*&order=" + m.order + "&limit=5000").then(function(r){ rows = r || []; apply(); }).catch(function(e){ clear(box); box.appendChild(msg("err", e.message)); }); }
+  function load(){ clear(box); box.appendChild(h("p", { text: "Loading\u2026" })); api(m.table + "?select=*" + (m.baseFilter ? "&" + m.baseFilter : "") + "&order=" + m.order + "&limit=5000").then(function(r){ rows = r || []; apply(); }).catch(function(e){ clear(box); box.appendChild(msg("err", e.message)); }); }
   [q, sel, progSel, from, to].forEach(function(el){ if (el) el.addEventListener(el === q ? "input" : "change", apply); });
   load();
 }
 
 /* ---------- record editor ---------- */
-function modal(content){ var ov = h("div", { "class": "modal", role: "dialog", "aria-modal": "true" }, [h("div", null, content)]); ov.addEventListener("click", function(e){ if (e.target === ov) ov.remove(); }); document.body.appendChild(ov); return ov; }
+function modal(content, onClose){ var ov = h("div", { "class": "modal", role: "dialog", "aria-modal": "true" }, [h("div", null, content)]); ov.addEventListener("click", function(e){ if (e.target === ov) { ov.remove(); if (onClose) onClose(); } }); document.body.appendChild(ov); return ov; }
 function editor(m, row, reload){
-  var isNew = !row, inputs = {}, ov, status = h("div"), form = h("form", { "class": "f" });
-  var ids = m.idField || "id";
+  var isNew = !row, inputs = {}, ov, status = h("div"), form = h("form", { "class": "f" }), ids = m.idField || "id";
+  var added = [], saved = false, uploading = 0, mediaState = {};
+  function closeEd(){ if (ov) ov.remove(); if (!saved) { added.forEach(function(p){ storageDelete(p).catch(function(){}); }); } }
+  function note(kind, t){ clear(status); status.appendChild(msg(kind, t)); }
+
+  /* ----- audio, cover and category fields ----- */
+  function mediaField(k, label, type, o, val){
+    var wrap = h("div", { "class": "field" }, [h("label", { text: label })]);
+    if (type === "category") {
+      var sel = h("select", { id: "f_" + k }, [h("option", { value: "", text: "Choose a category" })]); wrap.appendChild(sel); wrap.firstChild.setAttribute("for", "f_" + k);
+      loadAudioCats().then(function(cs){ cs.forEach(function(c){ sel.appendChild(h("option", { value: c.id, text: c.name })); }); sel.value = row && row.category_id ? row.category_id : ""; });
+      inputs[k] = { collect: function(out){ out.category_id = sel.value || null; var c = (audioCats || []).filter(function(x){ return x.id === sel.value; })[0]; out.category = c ? c.name : null; } };
+      return wrap;
+    }
+    var isAudio = type === "audiofile", st = { cur: row ? { path: isAudio ? row.audio_path : row.thumbnail_path } : {}, fresh: null };
+    var info = h("div", { "class": "ro" }), bar = h("div", { style: "height:10px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:.5rem", hidden: true }), fill = h("i", { style: "display:block;height:100%;width:0;background:var(--gold)" }); bar.appendChild(fill);
+    var pct = h("div", { "class": "help", text: "" }), prev = h("div");
+    var file = h("input", { type: "file", id: "f_" + k, accept: isAudio ? ".mp3,.m4a,.aac,.wav,.ogg,.oga,audio/*" : "image/jpeg,image/png,image/webp,image/*" });
+    function showCurrent(){
+      if (isAudio) { var c = st.fresh || (row && row.audio_path ? { name: row.audio_file_name, size: row.audio_size_bytes, mime: row.audio_mime, dur: row.duration_seconds, state: "Saved" } : null); info.textContent = c ? "File: " + (c.name || "audio") + "\nSize: " + (c.size ? fmtBytes(c.size) : "unknown") + "\nFormat: " + (c.mime || "audio") + "\nLength: " + (c.dur ? fmtDur(c.dur) : "unknown") + "\nStatus: " + (c.state || "Uploaded") : "No audio file chosen yet. Choose an MP3, M4A, AAC, WAV or OGG file (up to 50 MB)."; }
+      else { clear(prev); var u = st.fresh ? st.fresh.url : (row && row.thumbnail_url); if (u) prev.appendChild(h("img", { src: u, alt: "Cover preview", style: "max-width:160px;border-radius:10px;margin-top:.5rem" })); info.textContent = u ? "Cover image set." : "No cover image. A TSC tile will be shown instead."; }
+    }
+    showCurrent();
+    file.addEventListener("change", function(){
+      var f0 = file.files && file.files[0]; if (!f0) return; clear(status);
+      var ext = fileExt(f0.name);
+      if (isAudio) {
+        if (!AUDIO_EXT[ext]) { note("err", "That file type is not supported. Please use MP3, M4A, AAC, WAV or OGG."); file.value = ""; return; }
+        if (f0.type && f0.type.indexOf("audio/") !== 0 && f0.type !== "application/ogg" && f0.type !== "video/mp4") { note("err", "That does not look like an audio file."); file.value = ""; return; }
+        if (f0.size > MAX_AUDIO) { note("err", "This file is " + fmtBytes(f0.size) + ". The limit is 50 MB. Compress it to about 64 kbps mono (for example with a free audio converter app) and try again."); file.value = ""; return; }
+        if (f0.size < 1024) { note("err", "This file is empty or too small."); file.value = ""; return; }
+      } else if (["jpg", "jpeg", "png", "webp"].indexOf(ext) < 0) { note("err", "Please choose a JPG, PNG or WEBP image."); file.value = ""; return; }
+      uploading++; bar.hidden = false; fill.style.width = "0%"; pct.textContent = "Preparing\u2026"; var old = st.fresh;
+      var prep = isAudio ? readDuration(f0).then(function(d){ return { blob: f0, dur: d, type: AUDIO_EXT[ext], path: "audio/" + uuid() + "/" + safeName(f0.name) }; }) : shrink(f0, 1000, 0.82).then(function(b){ return { blob: b, type: "image/jpeg", path: "covers/" + uuid() + ".jpg" }; });
+      info.textContent = "File: " + f0.name + "\nSize: " + fmtBytes(f0.size) + "\nFormat: " + (f0.type || ext.toUpperCase()) + "\nStatus: Uploading\u2026";
+      prep.then(function(p){
+        return xhrUpload(p.path, p.blob, p.type, function(fr){ var n = Math.round(fr * 100); fill.style.width = n + "%"; pct.textContent = "Uploading " + n + "%"; }).then(function(url){
+          added.push(p.path); st.fresh = { path: p.path, url: url, name: f0.name, size: f0.size, mime: p.type, dur: p.dur, state: "Uploaded" };
+          if (old && old.path) { var i = added.indexOf(old.path); if (i > -1) added.splice(i, 1); storageDelete(old.path).catch(function(){}); }
+          fill.style.width = "100%"; pct.textContent = "Upload complete."; showCurrent(); note("ok", isAudio ? "Upload successful. Now complete the details below and tap Create or Save." : "Cover image uploaded.");
+          if (isAudio && inputs.title && !inputs.title.el.value) inputs.title.el.value = f0.name.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+        });
+      }).catch(function(e){ pct.textContent = "Upload failed."; info.textContent = info.textContent.replace("Uploading\u2026", "Failed"); note("err", e.message); }).then(function(){ uploading--; });
+    });
+    inputs[k] = { collect: function(out){
+      if (isAudio) { var c = st.fresh; if (c) { out.audio_url = c.url; out.audio_path = c.path; out.audio_file_name = c.name; out.audio_size_bytes = c.size; out.audio_mime = c.mime; out.duration_seconds = c.dur; } }
+      else if (st.fresh) { out.thumbnail_url = st.fresh.url; out.thumbnail_path = st.fresh.path; }
+    }, fresh: function(){ return st.fresh; } };
+    [info, file, bar, pct, prev].forEach(function(x){ wrap.appendChild(x); });
+    wrap.appendChild(h("p", { "class": "help", text: isAudio ? (isNew ? "The file uploads as soon as you choose it. Wait for 100% before saving." : "Choose a new file only if you want to replace the current audio.") : "Optional square or landscape image. It is resized automatically." }));
+    return wrap;
+  }
+
   m.fields.forEach(function(f){
     var k = f[0], label = f[1], type = f[2], o = f[3] || {}, val = row ? row[k] : undefined, el;
+    if (type === "audiofile" || type === "cover" || type === "category") { form.appendChild(mediaField(k, label, type, o, val)); return; }
     if (o.createOnly && !isNew) { form.appendChild(h("div", { "class": "field" }, [h("label", { text: label }), h("div", { "class": "ro", text: String(val) })])); return; }
     if (type === "ro" || type === "rodt") { if (isNew) return; var txt = val == null ? "" : type === "rodt" ? fmtDT(val) : (typeof val === "object" ? JSON.stringify(val, null, 1) : String(val)); form.appendChild(h("div", { "class": "field" }, [h("label", { text: label }), h("div", { "class": "ro", text: txt })])); return; }
-    if (type === "textarea") el = h("textarea", { id: "f_" + k }, []), el.value = val == null ? "" : val;
+    if (type === "textarea") { el = h("textarea", { id: "f_" + k }); el.value = val == null ? "" : val; }
     else if (type === "json") { el = h("textarea", { id: "f_" + k }); el.value = val === undefined ? "" : JSON.stringify(val, null, 1); }
     else if (type === "questions") { el = h("textarea", { id: "f_" + k }); el.value = (Array.isArray(val) ? val : []).map(function(x){ return (x.required ? "*" : "") + (x.label || x); }).join("\n"); }
     else if (type === "select" || type === "staff") { var opts = type === "staff" ? [["", "Unassigned"]].concat(staff.map(function(s){ return [s.id, s.full_name || "Staff"]; })) : (o.optionsFn ? o.optionsFn() : o.options); el = h("select", { id: "f_" + k }, [h("option", { value: "", text: "Choose" })].concat(opts.map(function(x){ return h("option", { value: x[0], text: x[1] }); }))); el.value = val == null ? "" : String(val); }
@@ -178,44 +268,56 @@ function editor(m, row, reload){
     else if (type === "date") { el = h("input", { type: "date", id: "f_" + k }); el.value = val || ""; }
     else if (type === "number") { el = h("input", { type: "number", id: "f_" + k, step: o.step || "1" }); el.value = val == null ? "" : val; }
     else if (type === "roles") { el = h("div", { "class": "field" }); ROLES.forEach(function(r){ var cb = h("input", { type: "checkbox", value: r, id: "r_" + r }); cb.checked = row && (row.roles || []).indexOf(r) > -1; el.appendChild(h("label", { style: "display:flex;gap:.5rem;align-items:center;font-weight:400" }, [cb, r.replace(/_/g, " ")])); }); }
-    else if (type === "upload") { el = h("div", { "class": "field" }); var url = h("input", { type: "text", id: "f_" + k, placeholder: "Image link" }); url.value = val || ""; var file = h("input", { type: "file", accept: "image/*", "aria-label": "Choose image to upload" }); var note = h("p", { "class": "help", text: "Choose a photograph to upload, or paste an image link." }); el.appendChild(url); el.appendChild(file); el.appendChild(note);
-      file.addEventListener("change", function(){ var f0 = file.files[0]; if (!f0) return; note.textContent = "Uploading\u2026"; var stamp = Date.now() + "-" + f0.name.replace(/[^\w.-]+/g, "_").replace(/\.\w+$/, "") + ".jpg"; shrink(f0, 1600, 0.82).then(function(b){ return upload({ path: (o.folder || "gallery") + "/" + stamp, blob: b }); }).then(function(u){ url.value = u; note.textContent = "Uploaded."; if (o.thumb) return shrink(f0, 480, 0.75).then(function(tb){ return upload({ path: (o.folder || "gallery") + "/thumb-" + stamp, blob: tb }); }).then(function(tu){ inputs.__thumb = tu; }); }).catch(function(e){ note.textContent = e.message; }); });
+    else if (type === "upload") { el = h("div", { "class": "field" }); var url = h("input", { type: "text", id: "f_" + k, placeholder: "Image link" }); url.value = val || ""; var file = h("input", { type: "file", accept: "image/*", "aria-label": "Choose image to upload" }); var note2 = h("p", { "class": "help", text: "Choose a photograph to upload, or paste an image link." }); el.appendChild(url); el.appendChild(file); el.appendChild(note2);
+      file.addEventListener("change", function(){ var f0 = file.files[0]; if (!f0) return; note2.textContent = "Uploading\u2026"; var stamp = Date.now() + "-" + f0.name.replace(/[^\w.-]+/g, "_").replace(/\.\w+$/, "") + ".jpg"; shrink(f0, 1600, 0.82).then(function(b){ return upload({ path: (o.folder || "gallery") + "/" + stamp, blob: b }); }).then(function(u){ url.value = u; note2.textContent = "Uploaded."; if (o.thumb) return shrink(f0, 480, 0.75).then(function(tb){ return upload({ path: (o.folder || "gallery") + "/thumb-" + stamp, blob: tb }); }).then(function(tu){ inputs.__thumb = tu; }); }).catch(function(e){ note2.textContent = e.message; }); });
       inputs[k] = { el: url, type: "text", opt: o }; form.appendChild(h("div", { "class": "field" }, [h("label", { "for": "f_" + k, text: label }), el])); return; }
-    else el = h("input", { type: "text", id: "f_" + k }), el.value = val == null ? "" : val;
+    else { el = h("input", { type: "text", id: "f_" + k }); el.value = val == null ? "" : val; }
     if (o.required && el.tagName !== "DIV") el.required = true;
     inputs[k] = { el: el, type: type, opt: o };
     var fld = h("div", { "class": "field" }, [type === "roles" ? h("label", { text: label }) : h("label", { "for": "f_" + k, text: label }), el]); if (o.help) fld.appendChild(h("p", { "class": "help", text: o.help })); form.appendChild(fld);
   });
+  function $id(id){ return document.getElementById(id); }
   function collect(){
     var out = {};
-    Object.keys(inputs).forEach(function(k){ if (k === "__thumb") return; var i = inputs[k], v;
+    Object.keys(inputs).forEach(function(k){
+      if (k === "__thumb") return; var i = inputs[k], v;
+      if (i.collect) { i.collect(out); return; }
       if (i.type === "bool") v = i.el.checked; else if (i.type === "roles") v = ROLES.filter(function(r){ return $id("r_" + r).checked; });
       else if (i.type === "datetime") v = fromLagos(i.el.value); else if (i.type === "number") v = i.el.value === "" ? null : Number(i.el.value);
       else if (i.type === "json") { try { v = JSON.parse(i.el.value); } catch(e){ throw new Error("The value must be valid JSON. Example: {\"text\":\"Hello\"}"); } }
-      else if (i.type === "questions") v = i.el.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean).map(function(s){ return s.charAt(0) === "*" ? { label: s.slice(1).trim(), required: true } : { label: s, required: false }; });
+      else if (i.type === "questions") v = i.el.value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean).map(function(x){ return x.charAt(0) === "*" ? { label: x.slice(1).trim(), required: true } : { label: x, required: false }; });
       else { v = i.el.value.trim(); if (v === "") v = null; }
       out[k] = v; });
     if (inputs.__thumb) out.thumb_url = inputs.__thumb;
     return out;
   }
-  function $id(id){ return document.getElementById(id); }
-  var save = h("button", { "class": "btn gold", type: "submit", text: isNew ? "Create" : "Save changes" }), cancel = h("button", { "class": "btn ghost", type: "button", text: "Close" }); cancel.addEventListener("click", function(){ ov.remove(); });
+  var save = h("button", { "class": "btn gold", type: "submit", text: isNew ? "Create" : "Save changes" }), cancel = h("button", { "class": "btn ghost", type: "button", text: "Close" }); cancel.addEventListener("click", closeEd);
   var acts = h("div", { "class": "actions" }, [save, cancel]);
   if (!isNew && m.preview) { var pv = h("button", { "class": "btn ghost", type: "button", text: "Preview" }); pv.addEventListener("click", function(){ var d; try { d = collect(); } catch(e){ return; } previewDevo(Object.assign({}, row, d)); }); acts.appendChild(pv); }
-  if (!isNew && m.actions) m.actions.forEach(function(a){ if (a.show && !a.show(row)) return; var b = h("button", { "class": "btn ghost", type: "button", text: a.label }); b.addEventListener("click", function(){ var patch = typeof a.patch === "function" ? a.patch(row) : a.patch; api(m.table + "?" + ids + "=eq." + encodeURIComponent(row[ids]), { method: "PATCH", body: patch, headers: { Prefer: "return=minimal" } }).then(function(){ ov.remove(); reload(); }).catch(function(e){ clear(status); status.appendChild(msg("err", e.message)); }); }); acts.appendChild(b); });
-  if (!isNew && m.remove) { var del = h("button", { "class": "btn danger", type: "button", text: "Delete" }); del.addEventListener("click", function(){ if (!confirm("Delete this record permanently? This cannot be undone.")) return; api(m.table + "?" + ids + "=eq." + encodeURIComponent(row[ids]), { method: "DELETE" }).then(function(){ ov.remove(); reload(); }).catch(function(e){ clear(status); status.appendChild(msg("err", e.message)); }); }); acts.appendChild(del); }
+  if (!isNew && m.actions) m.actions.forEach(function(a){ if (a.show && !a.show(row)) return; var b = h("button", { "class": "btn ghost", type: "button", text: a.label }); b.addEventListener("click", function(){ var patch = typeof a.patch === "function" ? a.patch(row) : a.patch; api(m.table + "?" + ids + "=eq." + encodeURIComponent(row[ids]), { method: "PATCH", body: patch, headers: { Prefer: "return=minimal" } }).then(function(){ saved = true; ov.remove(); reload(); }).catch(function(e){ note("err", e.message); }); }); acts.appendChild(b); });
+  if (!isNew && m.remove) { var del = h("button", { "class": "btn danger", type: "button", text: "Delete" }); del.addEventListener("click", function(){
+    if (!confirm(m.beforeDelete ? "Delete this record AND its stored audio and cover files permanently? This cannot be undone." : "Delete this record permanently? This cannot be undone.")) return;
+    del.disabled = true; var pre = m.beforeDelete ? m.beforeDelete(row) : Promise.resolve();
+    Promise.resolve(pre).then(function(){ return api(m.table + "?" + ids + "=eq." + encodeURIComponent(row[ids]), { method: "DELETE" }); }).then(function(){ saved = true; ov.remove(); reload(); }).catch(function(e){ del.disabled = false; note("err", e.message); }); }); acts.appendChild(del); }
   form.addEventListener("submit", function(e){
     e.preventDefault(); clear(status); var data;
-    try { data = collect(); } catch(err) { status.appendChild(msg("err", err.message)); return; }
+    if (uploading > 0) { note("err", "Please wait for the upload to finish (100%) before saving."); return; }
+    try { data = collect(); } catch(err) { note("err", err.message); return; }
+    if (m.id === "audio" && isNew && !data.audio_path) { note("err", "Please choose and upload an audio file first."); return; }
+    if (m.id === "audio" && data.status === "published" && !(data.audio_url || (row && row.audio_url))) { note("err", "A message needs an audio file before it can be published."); return; }
     if (m.id === "finance" && data.verified && !(row && row.verified)) data.verified_by = session.user.id; if (m.id === "finance" && !data.verified) data.verified_by = null;
-    if (m.id === "programmes" && data.start_at && data.end_at && data.end_at <= data.start_at) { status.appendChild(msg("err", "The end time must be after the start time. Please correct it, or leave the end time empty.")); return; }
+    if (m.id === "programmes" && data.start_at && data.end_at && data.end_at <= data.start_at) { note("err", "The end time must be after the start time. Please correct it, or leave the end time empty."); return; }
     if (m.id === "settings") data = { key: isNew ? data.key : row.key, value: data.value };
     save.disabled = true;
     var p = isNew ? api(m.table, { method: "POST", body: data, headers: { Prefer: "return=minimal" } }) : api(m.table + "?" + ids + "=eq." + encodeURIComponent(row[ids]), { method: "PATCH", body: data, headers: { Prefer: "return=minimal" } });
-    p.then(function(){ ov.remove(); reload(); }).catch(function(err){ save.disabled = false; status.appendChild(msg("err", /duplicate|23505/.test(err.message) ? "A record with that unique value already exists (for example, a devotional for that date)." : err.message)); });
+    p.then(function(){
+      saved = true; var olds = [];
+      if (!isNew && row) { if (data.audio_path && row.audio_path && data.audio_path !== row.audio_path) olds.push(row.audio_path); if (data.thumbnail_path && row.thumbnail_path && data.thumbnail_path !== row.thumbnail_path) olds.push(row.thumbnail_path); }
+      olds.forEach(function(op){ storageDelete(op).catch(function(){}); });
+      ov.remove(); reload();
+    }).catch(function(err){ save.disabled = false; note("err", /duplicate|23505/.test(err.message) ? "A record with that unique value already exists (for example, a devotional for that date)." : err.message); });
   });
-  var rm = row && m.id === "settings" ? null : null;
-  ov = modal([h("h2", { text: (isNew ? "New " : "Edit ") + (m.label.toLowerCase()), style: "margin-bottom:1rem" }), status, form, acts]);
+  ov = modal([h("h2", { text: (isNew ? "New " : "Edit ") + m.label.toLowerCase(), style: "margin-bottom:1rem" }), status, form, acts], closeEd);
   form.appendChild(acts);
 }
 function previewDevo(d){

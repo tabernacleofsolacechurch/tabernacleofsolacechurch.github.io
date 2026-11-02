@@ -101,6 +101,31 @@ function bindChrome(){
   var info = $("#devo-share-base"); if (info) info.textContent = CFG.siteUrl;
 }
 
+
+/* ---------- navigation additions (keeps older pages in step without editing them) ---------- */
+var NAV_EXTRA = [ { label: "Audio Library", href: "audio.html", after: "sermons.html", menus: ["Spiritual Growth", "Media and Gallery"] } ];
+function addNavExtras(){
+  NAV_EXTRA.forEach(function(x){
+    $$(".nav .dd").forEach(function(d){
+      var b = $("button", d), menu = $(".dd-menu", d); if (!b || !menu || x.menus.indexOf(b.textContent.trim()) < 0) return;
+      if ($$("a", menu).some(function(a){ return a.getAttribute("href") === x.href; })) return;
+      var ref = $$("a", menu).filter(function(a){ return a.getAttribute("href") === x.after; })[0], a = h("a", { href: x.href, text: x.label });
+      if (ref && ref.parentNode) ref.parentNode.insertBefore(a, ref.nextSibling); else menu.appendChild(a);
+    });
+    $$("#mobileNav details").forEach(function(d){
+      var sm = $("summary", d); if (!sm || x.menus.indexOf(sm.textContent.trim()) < 0) return;
+      if ($$("a", d).some(function(a){ return a.getAttribute("href") === x.href; })) return;
+      var ref = $$("a", d).filter(function(a){ return a.getAttribute("href") === x.after; })[0], a = h("a", { href: x.href, text: x.label });
+      if (ref && ref.parentNode) ref.parentNode.insertBefore(a, ref.nextSibling); else d.appendChild(a);
+    });
+    $$("footer ul").forEach(function(ul){
+      if ($$("a", ul).some(function(a){ return a.getAttribute("href") === x.href; })) return;
+      var ref = $$("a", ul).filter(function(a){ return a.getAttribute("href") === x.after; })[0];
+      if (!ref) return; var li = h("li", null, [h("a", { href: x.href, text: x.label })]); ref.parentNode.parentNode.insertBefore(li, ref.parentNode.nextSibling);
+    });
+  });
+}
+
 /* ---------- forms ---------- */
 function showStatus(form, kind, text, extra){
   var s = $(".status", form.parentNode) || $(".status", form);
@@ -410,8 +435,152 @@ function pageGive(){
   bindForm($("#partner-form"), { key: "partner", table: "partnership_enquiries", subject: "Partnership enquiry", success: "Thank you. We will respond to your partnership enquiry.", build: function(f){ return { row: { full_name: f.full_name, phone: f.phone || null, email: f.email || null, interest: f.interest || null, message: f.message || null, consent: !!f.consent } }; } });
 }
 
+
+/* ---------- AUDIO LIBRARY ---------- */
+var AUDIO_SELECT = "id,title,description,speaker,preached_on,published_at,category,category_id,duration_seconds,thumbnail_url,featured,allow_download,audio_url,audio_file_name,play_count";
+var AUDIO_PAGE = 12;
+function fmtDur(s){ s = Math.max(0, Math.round(Number(s) || 0)); var hh = Math.floor(s / 3600), mm = Math.floor((s % 3600) / 60), ss = s % 60; return (hh ? hh + ":" + (mm < 10 ? "0" : "") + mm : String(mm)) + ":" + (ss < 10 ? "0" : "") + ss; }
+function sbListCount(path){
+  var headers = { apikey: CFG.supabase.anonKey, Prefer: "count=exact" }; if (String(CFG.supabase.anonKey).indexOf("eyJ") === 0) headers.Authorization = "Bearer " + CFG.supabase.anonKey;
+  return fetch(CFG.supabase.url.replace(/\/$/, "") + "/rest/v1/" + path, { headers: headers }).then(function(r){
+    if (!r.ok) return r.text().then(function(t){ throw new Error(t || ("HTTP " + r.status)); });
+    var total = parseInt((r.headers.get("content-range") || "").split("/")[1], 10);
+    return r.json().then(function(rows){ return { rows: rows, total: isNaN(total) ? rows.length : total }; });
+  });
+}
+function staticAudio(f, offset, limit){
+  var all = (CNT.sermons || []).filter(function(s){ return s.audio_url && s.status !== "draft"; }), term = (f.term || "").toLowerCase();
+  all = all.filter(function(s){ return (!f.cat || s.category_id === f.cat) && (!f.from || (s.preached_on || "") >= f.from) && (!f.to || (s.preached_on || "") <= f.to) && (!term || ((s.title || "") + " " + (s.speaker || "") + " " + (s.description || "") + " " + (s.category || "")).toLowerCase().indexOf(term) > -1); });
+  all.sort(function(a, b){ if (f.sort === "plays") return (b.play_count || 0) - (a.play_count || 0); var da = a.published_at || a.preached_on || "", db = b.published_at || b.preached_on || ""; return f.sort === "old" ? (da < db ? -1 : 1) : (da < db ? 1 : -1); });
+  return Promise.resolve({ rows: all.slice(offset, offset + limit), total: all.length });
+}
+function fetchAudio(f, offset, limit){
+  if (!SB) return staticAudio(f, offset, limit);
+  var q = ["status=eq.published", "audio_url=not.is.null", "select=" + AUDIO_SELECT];
+  var t = (f.term || "").replace(/[(),*%\\"'.:]/g, " ").replace(/\s+/g, " ").trim();
+  if (t) { var e = encodeURIComponent(t); q.push("or=(title.ilike.*" + e + "*,speaker.ilike.*" + e + "*,description.ilike.*" + e + "*,category.ilike.*" + e + "*)"); }
+  if (f.cat) q.push("category_id=eq." + encodeURIComponent(f.cat));
+  if (f.from) q.push("preached_on=gte." + encodeURIComponent(f.from));
+  if (f.to) q.push("preached_on=lte." + encodeURIComponent(f.to));
+  q.push("order=" + (f.sort === "old" ? "published_at.asc.nullslast" : f.sort === "plays" ? "play_count.desc,published_at.desc.nullslast" : "published_at.desc.nullslast"));
+  q.push("limit=" + limit, "offset=" + offset);
+  return sbListCount("sermons?" + q.join("&"));
+}
+var AUDIO_PLAYER = null;
+function audioPlayer(){
+  if (AUDIO_PLAYER) return AUDIO_PLAYER;
+  var P = { current: null, list: [], buttons: {}, countedIds: {}, lastSave: 0, autonext: false };
+  var audio = document.createElement("audio"); audio.preload = "none"; P.audio = audio;
+  var cover = h("div", { "class": "apl-cover", "aria-hidden": "true" }), title = h("strong", { "class": "apl-title", text: "" }), who = h("span", { "class": "apl-who", text: "" });
+  var closeB = h("button", { type: "button", "class": "apl-x", "aria-label": "Close player", text: "\u00D7" });
+  var status = h("div", { "class": "apl-status", role: "status", "aria-live": "polite" });
+  var cur = h("span", { "class": "apl-time", text: "0:00" }), dur = h("span", { "class": "apl-time", text: "0:00" });
+  var seek = h("input", { type: "range", min: "0", max: "1000", value: "0", step: "1", "aria-label": "Seek", "class": "apl-seek" });
+  var back = h("button", { type: "button", "class": "apl-b", "aria-label": "Back 15 seconds", text: "\u221215s" }), fwd = h("button", { type: "button", "class": "apl-b", "aria-label": "Forward 15 seconds", text: "+15s" });
+  var play = h("button", { type: "button", "class": "apl-play", "aria-label": "Play", text: "Play" });
+  var spd = h("select", { "aria-label": "Playback speed", "class": "apl-spd" }); ["0.75", "1", "1.25", "1.5", "2"].forEach(function(v){ spd.appendChild(h("option", { value: v, text: v + "x" })); });
+  var mute = h("button", { type: "button", "class": "apl-b", "aria-label": "Mute", text: "Vol" }), vol = h("input", { type: "range", min: "0", max: "1", step: "0.05", value: "1", "aria-label": "Volume", "class": "apl-vol" });
+  var nextB = h("button", { type: "button", "class": "apl-b", "aria-pressed": "false", text: "Auto-next: off" });
+  var dl = h("a", { "class": "apl-b", href: "#", hidden: true, text: "Download", rel: "noopener" });
+  var retry = h("button", { type: "button", "class": "apl-b", text: "Try again", hidden: true });
+  var root = h("div", { "class": "apl", role: "region", "aria-label": "Audio player", hidden: true }, [
+    h("div", { "class": "apl-top" }, [cover, h("div", { "class": "apl-info" }, [title, who]), closeB]), status,
+    h("div", { "class": "apl-bar" }, [cur, seek, dur]),
+    h("div", { "class": "apl-ctrls" }, [back, play, fwd, h("label", { "class": "apl-lbl" }, ["Speed ", spd]), mute, vol, nextB, dl, retry])
+  ]);
+  document.body.appendChild(root); P.root = root; P.title = title; P.who = who; P.cover = cover; P.play = play; P.status = status; P.seek = seek; P.cur = cur; P.dur = dur; P.dl = dl; P.retry = retry; P.spd = spd; P.vol = vol; P.mute = mute;
+  var sp = store("tsc_speed") || "1"; spd.value = sp; audio.playbackRate = parseFloat(sp);
+  var sv = store("tsc_vol"); if (sv !== null && sv !== undefined) { vol.value = sv; audio.volume = parseFloat(sv); }
+  function setStatus(t, bad){ status.textContent = t || ""; status.className = "apl-status" + (bad ? " bad" : "") + (t && !bad ? " busy" : ""); }
+  function setPlayLabel(on){ play.textContent = on ? "Pause" : "Play"; play.setAttribute("aria-label", on ? "Pause" : "Play"); Object.keys(P.buttons).forEach(function(id){ var isCur = P.current && String(P.current.id) === id; P.buttons[id].forEach(function(b){ b.textContent = isCur && on ? "Pause" : "Play"; b.setAttribute("aria-pressed", isCur && on ? "true" : "false"); }); }); }
+  P.setPlayLabel = setPlayLabel; P.setStatus = setStatus;
+  function toggle(){ if (!P.current) return; if (audio.paused) { var pr = audio.play(); if (pr && pr.catch) pr.catch(onPlayFail); } else audio.pause(); }
+  function onPlayFail(e){ if (e && (e.name === "AbortError" || e.name === "NotAllowedError")) { setPlayLabel(false); setStatus(""); return; } setStatus("This recording could not be played right now. Please check your connection and try again.", true); retry.hidden = false; setPlayLabel(false); }
+  P.toggle = toggle;
+  play.addEventListener("click", toggle);
+  back.addEventListener("click", function(){ audio.currentTime = Math.max(0, (audio.currentTime || 0) - 15); });
+  fwd.addEventListener("click", function(){ var d = audio.duration; audio.currentTime = isFinite(d) ? Math.min(d - 0.5, (audio.currentTime || 0) + 15) : (audio.currentTime || 0) + 15; });
+  seek.addEventListener("input", function(){ var d = audio.duration || (P.current && P.current.duration_seconds) || 0; if (d) audio.currentTime = (seek.value / 1000) * d; });
+  spd.addEventListener("change", function(){ audio.playbackRate = parseFloat(spd.value); store("tsc_speed", spd.value); });
+  vol.addEventListener("input", function(){ audio.volume = parseFloat(vol.value); audio.muted = false; mute.textContent = "Vol"; store("tsc_vol", vol.value); });
+  mute.addEventListener("click", function(){ audio.muted = !audio.muted; mute.textContent = audio.muted ? "Muted" : "Vol"; mute.setAttribute("aria-label", audio.muted ? "Unmute" : "Mute"); });
+  nextB.addEventListener("click", function(){ P.autonext = !P.autonext; nextB.textContent = "Auto-next: " + (P.autonext ? "on" : "off"); nextB.setAttribute("aria-pressed", P.autonext ? "true" : "false"); });
+  retry.addEventListener("click", function(){ retry.hidden = true; if (P.current) { var it = P.current; P.current = null; P.playItem(it, P.list); } });
+  closeB.addEventListener("click", function(){ audio.pause(); root.hidden = true; document.body.classList.remove("has-player"); setPlayLabel(false); });
+  audio.addEventListener("loadstart", function(){ setStatus("Loading\u2026"); });
+  audio.addEventListener("waiting", function(){ setStatus("Buffering\u2026"); });
+  audio.addEventListener("stalled", function(){ setStatus("Waiting for the network\u2026"); });
+  audio.addEventListener("canplay", function(){ if (!audio.error) setStatus(""); });
+  audio.addEventListener("playing", function(){ setStatus(""); retry.hidden = true; setPlayLabel(true); if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing"; if (P.current && !P.countedIds[P.current.id]) { P.countedIds[P.current.id] = 1; if (SB) dbRpc("increment_play", { pid: P.current.id }).catch(function(){}); } });
+  audio.addEventListener("pause", function(){ setPlayLabel(false); if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused"; });
+  audio.addEventListener("durationchange", function(){ if (isFinite(audio.duration)) dur.textContent = fmtDur(audio.duration); });
+  audio.addEventListener("loadedmetadata", function(){ if (isFinite(audio.duration)) dur.textContent = fmtDur(audio.duration); if (P.current) { var saved = parseFloat(store("tsc_pos_" + P.current.id)) || 0; if (saved > 5 && audio.duration && saved < audio.duration - 15) audio.currentTime = saved; } });
+  audio.addEventListener("timeupdate", function(){
+    var d = isFinite(audio.duration) && audio.duration ? audio.duration : ((P.current && P.current.duration_seconds) || 0);
+    cur.textContent = fmtDur(audio.currentTime); if (d) seek.value = String(Math.round(audio.currentTime / d * 1000));
+    if (P.current && Date.now() - P.lastSave > 5000) { P.lastSave = Date.now(); store("tsc_pos_" + P.current.id, String(Math.floor(audio.currentTime))); }
+  });
+  audio.addEventListener("ended", function(){
+    if (P.current) store("tsc_pos_" + P.current.id, null); setPlayLabel(false);
+    if (P.autonext && P.current) { var i = P.list.map(function(x){ return x.id; }).indexOf(P.current.id); if (i > -1 && P.list[i + 1]) P.playItem(P.list[i + 1], P.list); }
+  });
+  audio.addEventListener("error", function(){ setStatus("This recording could not be loaded. It may have been removed, or your connection may be down.", true); retry.hidden = false; setPlayLabel(false); });
+  P.playItem = function(item, list){
+    P.list = list || P.list; root.hidden = false; document.body.classList.add("has-player");
+    if (P.current && P.current.id === item.id && !audio.error) { toggle(); return; }
+    P.current = item; title.textContent = item.title; who.textContent = [item.speaker, item.category].filter(Boolean).join(" | ");
+    clear(cover); if (item.thumbnail_url) cover.appendChild(h("img", { src: item.thumbnail_url, alt: "" })); else cover.textContent = "TSC";
+    seek.value = "0"; cur.textContent = "0:00"; dur.textContent = item.duration_seconds ? fmtDur(item.duration_seconds) : "0:00"; retry.hidden = true; setStatus("Loading\u2026");
+    if (item.allow_download && item.audio_url) { dl.href = item.audio_url + (/\/storage\/v1\/object\/public\//.test(item.audio_url) ? "?download=" + encodeURIComponent(item.audio_file_name || (item.title + ".mp3")) : ""); dl.hidden = false; } else dl.hidden = true;
+    audio.src = item.audio_url; audio.playbackRate = parseFloat(spd.value) || 1;
+    var pr = audio.play(); if (pr && pr.catch) pr.catch(onPlayFail);
+    if ("mediaSession" in navigator && window.MediaMetadata) {
+      try { navigator.mediaSession.metadata = new MediaMetadata({ title: item.title, artist: item.speaker || "Tabernacle of Solace Church", album: item.category || "TSC Audio Library", artwork: item.thumbnail_url ? [{ src: item.thumbnail_url }] : [{ src: pageUrl("apple-touch-icon.png"), sizes: "180x180", type: "image/png" }] });
+        navigator.mediaSession.setActionHandler("play", function(){ audio.play(); }); navigator.mediaSession.setActionHandler("pause", function(){ audio.pause(); });
+        navigator.mediaSession.setActionHandler("seekbackward", function(){ back.click(); }); navigator.mediaSession.setActionHandler("seekforward", function(){ fwd.click(); });
+      } catch(e){}
+    }
+  };
+  AUDIO_PLAYER = P; return P;
+}
+function audioCover(item, big){ var c = h("div", { "class": "cover" + (big ? " big" : "") }); if (item.thumbnail_url) c.appendChild(h("img", { src: item.thumbnail_url, alt: "Cover for " + item.title, loading: big ? "eager" : "lazy" })); else c.appendChild(h("span", { "class": "cover-ph", "aria-hidden": "true", text: "TSC" })); return c; }
+function audioMeta(item){ return [item.speaker, item.preached_on ? dateOnly(item.preached_on, { day: "numeric", month: "long", year: "numeric" }) : "", item.duration_seconds ? fmtDur(item.duration_seconds) : ""].filter(Boolean).join(" | "); }
+function pageAudio(){
+  var P = audioPlayer(), list = $("#audio-list"), more = $("#a-more"), cnt = $("#a-count"), feat = $("#audio-featured");
+  var f = { term: "", cat: "", from: "", to: "", sort: "new" }, offset = 0, total = 0, items = [], busy = false;
+  var q = $("#a-search"), cat = $("#a-cat"), from = $("#a-from"), to = $("#a-to"), sort = $("#a-sort"), clr = $("#a-clear");
+  function playBtn(item, cls){ var b = h("button", { "class": "btn " + (cls || "btn-navy btn-sm"), type: "button", "aria-pressed": "false", text: "Play" }); b.addEventListener("click", function(){ P.playItem(item, items.length ? items : [item]); }); (P.buttons[item.id] = P.buttons[item.id] || []).push(b); return b; }
+  function card(item){
+    var acts = [playBtn(item)];
+    if (item.allow_download && item.audio_url) acts.push(h("a", { "class": "btn btn-ghost btn-sm", href: item.audio_url + (/\/storage\/v1\/object\/public\//.test(item.audio_url) ? "?download=" + encodeURIComponent(item.audio_file_name || (item.title + ".mp3")) : ""), rel: "noopener", text: "Download" }));
+    acts.push(h("a", { "class": "btn btn-ghost btn-sm", href: "https://wa.me/?text=" + encodeURIComponent(item.title + "\n" + pageUrl("audio.html", "id=" + item.id)), target: "_blank", rel: "noopener", text: "Share" }));
+    return h("article", { "class": "card audio-card" }, [audioCover(item), h("div", { "class": "audio-body" }, [item.category ? h("span", { "class": "badge", text: item.category }) : null, h("h3", { text: item.title }), h("p", { "class": "meta", text: audioMeta(item) }), item.description ? h("p", { text: trim(item.description, 140) }) : null, h("div", { "class": "actions" }, acts)])]);
+  }
+  function draw(){ clear(list); if (!items.length) { list.appendChild(emptyBox("No messages found", total === 0 && !f.term && !f.cat && !f.from && !f.to ? "Audio messages will appear here as soon as they are published." : "Try a different search, category or date range.", f.term || f.cat || f.from || f.to ? null : null)); } else { var g = h("div", { "class": "grid c3" }); items.forEach(function(it){ g.appendChild(card(it)); }); list.appendChild(g); } cnt.textContent = total ? "Showing " + items.length + " of " + total + " messages" : ""; more.hidden = items.length >= total; more.disabled = false; more.textContent = "Load more messages"; }
+  function load(reset){
+    if (busy) return; busy = true; if (reset) { offset = 0; items = []; clear(list); list.appendChild(h("p", { "class": "loading", text: "Loading messages\u2026" })); }
+    more.disabled = true; more.textContent = "Loading\u2026";
+    fetchAudio(f, offset, AUDIO_PAGE).then(function(r){ items = items.concat(r.rows || []); total = r.total; offset = items.length; busy = false; draw(); }).catch(function(){ busy = false; clear(list); list.appendChild(emptyBox("We could not load the messages right now", "Please check your connection and try again.", [h("button", { "class": "btn btn-navy btn-sm", type: "button", text: "Try again", onclick: "" })])); $("button", list).addEventListener("click", function(){ load(true); }); more.hidden = true; });
+  }
+  more.addEventListener("click", function(){ load(false); });
+  var tmr = null; q.addEventListener("input", function(){ clearTimeout(tmr); tmr = setTimeout(function(){ f.term = q.value.trim(); load(true); }, 350); });
+  cat.addEventListener("change", function(){ f.cat = cat.value; load(true); }); sort.addEventListener("change", function(){ f.sort = sort.value; load(true); });
+  from.addEventListener("change", function(){ f.from = from.value; load(true); }); to.addEventListener("change", function(){ f.to = to.value; load(true); });
+  clr.addEventListener("click", function(){ q.value = ""; cat.value = ""; from.value = ""; to.value = ""; sort.value = "new"; f = { term: "", cat: "", from: "", to: "", sort: "new" }; load(true); });
+  dbList("audio_categories", "active=eq.true&select=id,name&order=sort.asc", []).then(function(rows){ rows.forEach(function(c){ cat.appendChild(h("option", { value: c.id, text: c.name })); }); }).catch(function(){});
+  function showFeatured(it, label){ clear(feat); if (!it) return; var big = h("div", { "class": "feature" }, [audioCover(it, true), h("div", { "class": "feature-body" }, [h("span", { "class": "badge", text: label }), h("h2", { text: it.title }), h("p", { "class": "meta", text: audioMeta(it) }), it.description ? h("p", { text: trim(it.description, 260) }) : null, h("div", { "class": "hero-cta", style: "justify-content:flex-start" }, [playBtn(it, "btn-gold")])])]); feat.appendChild(big); }
+  var wantId = param("id");
+  var fq = wantId && SB ? dbList("sermons", "id=eq." + encodeURIComponent(wantId) + "&status=eq.published&audio_url=not.is.null&select=" + AUDIO_SELECT, []).then(function(r){ return r[0] ? { it: r[0], label: "Selected message" } : null; }) : Promise.resolve(null);
+  fq.catch(function(){ return null; }).then(function(sel){
+    if (sel) { showFeatured(sel.it, sel.label); return; }
+    var fp = SB ? dbList("sermons", "status=eq.published&featured=eq.true&audio_url=not.is.null&select=" + AUDIO_SELECT + "&order=published_at.desc.nullslast&limit=1", []) : staticAudio({ sort: "new" }, 0, 50).then(function(r){ var x = r.rows.filter(function(s){ return s.featured; })[0]; return x ? [x] : []; });
+    return fp.then(function(r){ if (r[0]) return showFeatured(r[0], "Featured message"); return fetchAudio({ sort: "new" }, 0, 1).then(function(x){ if (x.rows[0]) showFeatured(x.rows[0], "Latest message"); }); });
+  }).catch(function(){ clear(feat); });
+  load(true);
+}
+
 /* ---------- boot ---------- */
-var pages = { home: pageHome, visit: pageVisit, programmes: pageProgrammes, programme: pageProgramme, devotional: pageDevotional, bible: pageBible, believers: function(){ pageBelievers(); bindWalk(); }, sermons: pageSermons, gallery: pageGallery, membership: pageMembership, prayer: pagePrayer, testimony: pageTestimony, contact: pageContact, give: pageGive };
-initChrome(); bindChrome();
+var pages = { home: pageHome, visit: pageVisit, programmes: pageProgrammes, programme: pageProgramme, devotional: pageDevotional, bible: pageBible, believers: function(){ pageBelievers(); bindWalk(); }, sermons: pageSermons, gallery: pageGallery, membership: pageMembership, prayer: pagePrayer, testimony: pageTestimony, contact: pageContact, give: pageGive, audio: pageAudio };
+initChrome(); addNavExtras(); bindChrome();
 loadSettings().then(function(){ bindChrome(); if (pages[PAGE]) pages[PAGE](); }).catch(function(){ if (pages[PAGE]) pages[PAGE](); });
 })();
