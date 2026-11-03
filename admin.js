@@ -85,6 +85,9 @@ var MODULES = [
    fields: [["audio", "Audio file", "audiofile"], ["title", "Message title", "text", { required: true }], ["description", "Short description", "textarea"], ["speaker", "Speaker or preacher", "text"], ["preached_on", "Date recorded or preached", "date"], ["category_id", "Category", "category"], ["cover", "Cover image (optional)", "cover"], ["scripture_refs", "Scripture references", "text"], ["series", "Series or collection (optional)", "text"], ["featured", "Featured message", "bool"], ["allow_download", "Allow visitors to download this message", "bool"], ["status", "Status", "select", { options: statusOpts(["draft", "published", "archived"]) }]] },
  { id: "audiocats", label: "Audio categories", table: "audio_categories", roles: ["content_editor"], order: "sort.asc", cols: [["sort", "Order"], ["name", "Category"], ["active", "Active", function(v){ return badge(v ? "yes" : "no"); }]], create: true, remove: true, intro: "Add or rename categories. Renaming updates the category name on existing messages. A category in use cannot be removed without first moving its messages (messages keep working if it is removed).",
    fields: [["name", "Category name", "text", { required: true }], ["sort", "Display order (1 = first)", "number"], ["active", "Active (shown on the website)", "bool"]] },
+ { id: "radio", label: "Radio settings", roles: ["content_editor"], special: "radio" },
+ { id: "radiosched", label: "Radio schedule", table: "radio_schedule", roles: ["content_editor"], order: "day_of_week.asc,start_time.asc", cols: [["day_of_week", "Day", function(v){ return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][v] || v; }], ["start_time", "From", function(v){ return String(v).slice(0, 5); }], ["end_time", "To", function(v){ return String(v).slice(0, 5); }], ["title", "Programme"], ["kind", "Type"], ["active", "Active", function(v){ return badge(v ? "yes" : "no"); }]], create: true, remove: true, search: ["title", "speaker"], intro: "The weekly programme schedule shown on the TSC Radio page, in Nigeria time. Times repeat every week. For a programme that runs past midnight, add two entries. This is the planned schedule only. The radio platform controls what is actually broadcast.",
+   fields: [["day_of_week", "Day of the week", "select", { options: [["0","Sunday"],["1","Monday"],["2","Tuesday"],["3","Wednesday"],["4","Thursday"],["5","Friday"],["6","Saturday"]], required: true }], ["start_time", "Starts (Nigeria time)", "time", { required: true }], ["end_time", "Ends (Nigeria time)", "time", { required: true }], ["title", "Programme title", "text", { required: true }], ["speaker", "Presenter or preacher", "text"], ["kind", "Type", "select", { options: [["live", "Live"], ["recorded", "Recorded"]], required: true }], ["description", "Description", "textarea"], ["active", "Active", "bool"]] },
  { id: "gallery", label: "Gallery", table: "gallery_items", roles: ["content_editor"], order: "created_at.desc", cols: [["created_at", "Added", fmtDT], ["caption", "Caption"], ["category", "Category"], ["status", "Status", badge]], statusField: "status", statuses: function(){ return ["draft", "published", "archived"]; }, search: ["caption", "category", "event_name"], create: true, remove: true, actions: PUB, intro: "Only upload authentic TSC photographs. Obtain permission before publishing identifiable photographs, especially of children. Images are resized automatically for fast loading.",
    fields: [["image_url", "Photograph", "upload", { required: true, folder: "gallery", thumb: "thumb_url" }], ["caption", "Caption", "text"], ["alt_text", "Description for screen readers", "text", { help: "Describe what the photograph shows." }], ["category", "Category", "text"], ["event_name", "Event name", "text"], ["event_date", "Event date", "date"], ["featured", "Featured", "bool"], ["sort", "Sort order", "number"], ["status", "Status", "select", { options: statusOpts(["draft", "published", "archived"]) }]] },
  { id: "lessons", label: "New believers' lessons", roles: ["content_editor"], special: "lessons" },
@@ -100,7 +103,7 @@ var MODULES = [
    fields: [["key", "Key", "text", { required: true, help: "e.g. membership_welcome, programme_reminder" }], ["subject", "Subject", "text"], ["body", "Message", "textarea"], ["active", "Active", "bool"]] },
  { id: "users", label: "Users and roles", table: "profiles", roles: ["super_admin"], order: "created_at.desc", cols: [["full_name", "Name"], ["roles", "Roles", function(v){ return (v || []).join(", "); }], ["active", "Active", function(v){ return badge(v ? "yes" : "no"); }]], create: true, remove: false, intro: "To add a staff member: first create their login in Supabase (Authentication, Users, Add user), copy the User ID, then add their profile here with the roles they need. Give each person only the roles they need.",
    fields: [["id", "User ID (from Supabase Authentication)", "text", { required: true, createOnly: true }], ["full_name", "Full name", "text", { required: true }], ["roles", "Roles", "roles"], ["active", "Active", "bool"]] },
- { id: "settings", label: "Settings", table: "site_settings", roles: ["super_admin", "content_editor"], order: "key.asc", cols: [["key", "Setting"], ["value", "Value", function(v){ return JSON.stringify(v).slice(0, 90); }]], create: true, remove: true, idField: "key", intro: "Known keys: announcement ({\"text\":\"...\",\"link\":\"...\"}), service_times ([{\"name\":\"Sunday Service\",\"day\":\"Sundays\",\"time\":\"9:00 AM\",\"venue\":\"...\"}]), address (\"...\"), map_url, location_note, whatsapp (digits only), email, member_statuses (list). Never store passwords or private keys here: these values are public.",
+ { id: "settings", label: "Settings", table: "site_settings", roles: ["super_admin", "content_editor"], order: "key.asc", cols: [["key", "Setting"], ["value", "Value", function(v){ return JSON.stringify(v).slice(0, 90); }]], create: true, remove: true, idField: "key", intro: "Known keys: radio (use the Radio settings page instead), announcement ({\"text\":\"...\",\"link\":\"...\"}), service_times ([{\"name\":\"Sunday Service\",\"day\":\"Sundays\",\"time\":\"9:00 AM\",\"venue\":\"...\"}]), address (\"...\"), map_url, location_note, whatsapp (digits only), email, member_statuses (list). Never store passwords or private keys here: these values are public.",
    fields: [["key", "Setting key", "text", { required: true, createOnly: true }], ["value", "Value (JSON)", "json", { required: true }]] },
  { id: "audit", label: "Audit log", table: "audit_logs", roles: ["super_admin"], order: "at.desc", readOnly: true, cols: [["at", "When", fmtDT], ["action", "Action"], ["table_name", "Table"], ["record_id", "Record"], ["details", "Details", function(v){ return JSON.stringify(v); }]], search: ["table_name", "action"], fields: [] }
 ];
@@ -123,6 +126,7 @@ function route(){
   if (m.id === "dashboard") return dashboard(main);
   if (m.special === "followups") return followups(main);
   if (m.special === "lessons") return lessonsInfo(main);
+  if (m.special === "radio") return radioSettings(main);
   listView(main, m);
 }
 window.addEventListener("hashchange", function(){ if (session && me.roles.length) route(); });
@@ -266,6 +270,7 @@ function editor(m, row, reload){
     else if (type === "bool") { el = h("input", { type: "checkbox", id: "f_" + k }); el.checked = isNew ? (k === "active") : !!val; }
     else if (type === "datetime") { el = h("input", { type: "datetime-local", id: "f_" + k }); el.value = lagosInput(val); }
     else if (type === "date") { el = h("input", { type: "date", id: "f_" + k }); el.value = val || ""; }
+    else if (type === "time") { el = h("input", { type: "time", id: "f_" + k }); el.value = val ? String(val).slice(0, 5) : ""; }
     else if (type === "number") { el = h("input", { type: "number", id: "f_" + k, step: o.step || "1" }); el.value = val == null ? "" : val; }
     else if (type === "roles") { el = h("div", { "class": "field" }); ROLES.forEach(function(r){ var cb = h("input", { type: "checkbox", value: r, id: "r_" + r }); cb.checked = row && (row.roles || []).indexOf(r) > -1; el.appendChild(h("label", { style: "display:flex;gap:.5rem;align-items:center;font-weight:400" }, [cb, r.replace(/_/g, " ")])); }); }
     else if (type === "upload") { el = h("div", { "class": "field" }); var url = h("input", { type: "text", id: "f_" + k, placeholder: "Image link" }); url.value = val || ""; var file = h("input", { type: "file", accept: "image/*", "aria-label": "Choose image to upload" }); var note2 = h("p", { "class": "help", text: "Choose a photograph to upload, or paste an image link." }); el.appendChild(url); el.appendChild(file); el.appendChild(note2);
@@ -283,7 +288,7 @@ function editor(m, row, reload){
       if (k === "__thumb") return; var i = inputs[k], v;
       if (i.collect) { i.collect(out); return; }
       if (i.type === "bool") v = i.el.checked; else if (i.type === "roles") v = ROLES.filter(function(r){ return $id("r_" + r).checked; });
-      else if (i.type === "datetime") v = fromLagos(i.el.value); else if (i.type === "number") v = i.el.value === "" ? null : Number(i.el.value);
+      else if (i.type === "time") v = i.el.value ? i.el.value + ":00" : null; else if (i.type === "datetime") v = fromLagos(i.el.value); else if (i.type === "number") v = i.el.value === "" ? null : Number(i.el.value);
       else if (i.type === "json") { try { v = JSON.parse(i.el.value); } catch(e){ throw new Error("The value must be valid JSON. Example: {\"text\":\"Hello\"}"); } }
       else if (i.type === "questions") v = i.el.value.split("\n").map(function(x){ return x.trim(); }).filter(Boolean).map(function(x){ return x.charAt(0) === "*" ? { label: x.slice(1).trim(), required: true } : { label: x, required: false }; });
       else { v = i.el.value.trim(); if (v === "") v = null; }
@@ -307,6 +312,7 @@ function editor(m, row, reload){
     if (m.id === "audio" && data.status === "published" && !(data.audio_url || (row && row.audio_url))) { note("err", "A message needs an audio file before it can be published."); return; }
     if (m.id === "finance" && data.verified && !(row && row.verified)) data.verified_by = session.user.id; if (m.id === "finance" && !data.verified) data.verified_by = null;
     if (m.id === "programmes" && data.start_at && data.end_at && data.end_at <= data.start_at) { note("err", "The end time must be after the start time. Please correct it, or leave the end time empty."); return; }
+    if (m.id === "radiosched" && data.start_time && data.end_time && data.end_time <= data.start_time) { note("err", "The end time must be after the start time. For a programme that passes midnight, add two entries."); return; }
     if (m.id === "settings") data = { key: isNew ? data.key : row.key, value: data.value };
     save.disabled = true;
     var p = isNew ? api(m.table, { method: "POST", body: data, headers: { Prefer: "return=minimal" } }) : api(m.table + "?" + ids + "=eq." + encodeURIComponent(row[ids]), { method: "PATCH", body: data, headers: { Prefer: "return=minimal" } });
@@ -326,6 +332,28 @@ function previewDevo(d){
   [["Main message", d.message], ["Practical application", d.application], ["Reflection question", d.reflection], ["Closing prayer", d.prayer], ["Related reading", d.related_reading]].forEach(function(s){ if (s[1]) { k.push(h("h3", { text: s[0], style: "margin-top:1.2rem" })); k.push(h("p", { text: s[1], style: "white-space:pre-wrap" })); } });
   var ov = modal([h("p", { "class": "badge", text: "Preview only. Not public until status is Published and the date has arrived." })].concat(k, [h("p", null, [h("button", { "class": "btn ghost", type: "button", text: "Close preview", onclick: "" })])])); $$btn(ov);
   function $$btn(o){ var b = o.querySelector("button"); b.addEventListener("click", function(){ o.remove(); }); }
+}
+
+
+/* ---------- radio settings panel ---------- */
+function radioSettings(main){
+  main.appendChild(h("h1", { text: "Radio settings" }));
+  main.appendChild(h("p", { text: "TSC Radio is streamed by an outside radio provider. Here you only enter the PUBLIC listener addresses it gives you. Never enter broadcast passwords here: this information is visible to the public.", style: "color:var(--muted);max-width:760px" }));
+  var out = h("div"), form = h("form", { "class": "f panel" });
+  var defs = [["provider", "Radio provider name (optional)", "e.g. Caster.fm"], ["embed_url", "Player widget address (https://...)", "The embed or widget link your provider gives you. Shown as a player on the radio page."], ["stream_url", "Direct stream address (https://...)", "Only if your plan includes a direct stream link. Enables the custom Listen Live button."], ["status_url", "Status feed address (optional)", "Icecast status-json.xsl or AzuraCast now-playing address, if your provider allows it."], ["website_url", "Provider radio page (optional)", "A link to the full radio page on the provider's site."]];
+  var inputs = {};
+  defs.forEach(function(d){ var i = h("input", { type: "text", id: "rs_" + d[0], placeholder: d[2] }); inputs[d[0]] = i; form.appendChild(h("div", { "class": "field" }, [h("label", { "for": "rs_" + d[0], text: d[1] }), i, h("p", { "class": "help", text: d[2] })])); });
+  var save = h("button", { "class": "btn gold", type: "submit", text: "Save radio settings" }); form.appendChild(save);
+  main.appendChild(out); main.appendChild(form);
+  api("site_settings?key=eq.radio&select=value").then(function(r){ var v = (r && r[0] && r[0].value) || {}; Object.keys(inputs).forEach(function(k){ inputs[k].value = v[k] || ""; }); }).catch(function(e){ out.appendChild(msg("err", e.message)); });
+  form.addEventListener("submit", function(e){
+    e.preventDefault(); clear(out); var val = {}, bad = null;
+    Object.keys(inputs).forEach(function(k){ var x = inputs[k].value.trim(); if (k !== "provider" && x && !/^https:\/\//i.test(x)) bad = "Addresses must start with https://"; val[k] = x; });
+    if (bad) { out.appendChild(msg("err", bad)); return; }
+    save.disabled = true;
+    api("site_settings", { method: "POST", body: { key: "radio", value: val }, headers: { Prefer: "resolution=merge-duplicates,return=minimal" } }).then(function(){ save.disabled = false; out.appendChild(msg("ok", "Saved. The radio page uses these addresses straight away.")); }).catch(function(err){ save.disabled = false; out.appendChild(msg("err", err.message)); });
+  });
+  main.appendChild(h("div", { "class": "panel" }, [h("h3", { text: "Going live and automation" }), h("p", { text: "Start and stop live broadcasts, upload playlists and see listener statistics in your radio provider's own dashboard. This site shows the station on the Radio page and keeps the weekly schedule (Radio schedule)." })]));
 }
 
 /* ---------- follow-up module ---------- */

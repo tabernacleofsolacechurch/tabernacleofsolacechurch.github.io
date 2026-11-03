@@ -103,7 +103,7 @@ function bindChrome(){
 
 
 /* ---------- navigation additions (keeps older pages in step without editing them) ---------- */
-var NAV_EXTRA = [ { label: "Audio Library", href: "audio.html", after: "sermons.html", menus: ["Spiritual Growth", "Media and Gallery"] } ];
+var NAV_EXTRA = [ { label: "Audio Library", href: "audio.html", after: "sermons.html", menus: ["Spiritual Growth", "Media and Gallery"] }, { label: "TSC Radio", href: "radio.html", after: "audio.html", menus: ["Media and Gallery"] } ];
 function addNavExtras(){
   NAV_EXTRA.forEach(function(x){
     $$(".nav .dd").forEach(function(d){
@@ -493,7 +493,7 @@ function audioPlayer(){
   var sv = store("tsc_vol"); if (sv !== null && sv !== undefined) { vol.value = sv; audio.volume = parseFloat(sv); }
   function setStatus(t, bad){ status.textContent = t || ""; status.className = "apl-status" + (bad ? " bad" : "") + (t && !bad ? " busy" : ""); }
   function setPlayLabel(on){ play.textContent = on ? "Pause" : "Play"; play.setAttribute("aria-label", on ? "Pause" : "Play"); Object.keys(P.buttons).forEach(function(id){ var isCur = P.current && String(P.current.id) === id; P.buttons[id].forEach(function(b){ b.textContent = isCur && on ? "Pause" : "Play"; b.setAttribute("aria-pressed", isCur && on ? "true" : "false"); }); }); }
-  P.setPlayLabel = setPlayLabel; P.setStatus = setStatus;
+  P.setPlayLabel = setPlayLabel; P.setStatus = setStatus; P.setAutonext = function(on){ P.autonext = !!on; nextB.textContent = "Auto-next: " + (P.autonext ? "on" : "off"); nextB.setAttribute("aria-pressed", P.autonext ? "true" : "false"); };
   function toggle(){ if (!P.current) return; if (audio.paused) { var pr = audio.play(); if (pr && pr.catch) pr.catch(onPlayFail); } else audio.pause(); }
   function onPlayFail(e){ if (e && (e.name === "AbortError" || e.name === "NotAllowedError")) { setPlayLabel(false); setStatus(""); return; } setStatus("This recording could not be played right now. Please check your connection and try again.", true); retry.hidden = false; setPlayLabel(false); }
   P.toggle = toggle;
@@ -526,6 +526,7 @@ function audioPlayer(){
   });
   audio.addEventListener("error", function(){ setStatus("This recording could not be loaded. It may have been removed, or your connection may be down.", true); retry.hidden = false; setPlayLabel(false); });
   P.playItem = function(item, list){
+    if (window.TSC_RADIO_STOP) window.TSC_RADIO_STOP();
     P.list = list || P.list; root.hidden = false; document.body.classList.add("has-player");
     if (P.current && P.current.id === item.id && !audio.error) { toggle(); return; }
     P.current = item; title.textContent = item.title; who.textContent = [item.speaker, item.category].filter(Boolean).join(" | ");
@@ -579,8 +580,99 @@ function pageAudio(){
   load(true);
 }
 
+
+/* ---------- TSC RADIO ---------- */
+function radioConf(){
+  var r = { provider: "", embedUrl: "", streamUrl: "", statusUrl: "", websiteUrl: "" }, c = CFG.radio || {}, s = SET.radio || {};
+  Object.keys(r).forEach(function(k){ if (c[k]) r[k] = c[k]; });
+  [["provider", "provider"], ["embed_url", "embedUrl"], ["stream_url", "streamUrl"], ["status_url", "statusUrl"], ["website_url", "websiteUrl"]].forEach(function(p){ if (s[p[0]]) r[p[1]] = s[p[0]]; });
+  return r;
+}
+function isHttps(u){ try { return new URL(u).protocol === "https:"; } catch(e){ return false; } }
+function lagosDayMin(d){
+  var p = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d), o = {}; p.forEach(function(x){ o[x.type] = x.value; });
+  return { dow: { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[o.weekday], min: (+o.hour) * 60 + (+o.minute) };
+}
+function hmMin(t){ var a = String(t).split(":"); return (+a[0]) * 60 + (+a[1]); }
+function fmt12(t){ var m = hmMin(t), hh = Math.floor(m / 60), mm = m % 60; return (hh % 12 || 12) + ":" + (mm < 10 ? "0" : "") + mm + " " + (hh >= 12 ? "PM" : "AM"); }
+function parseStation(j){
+  var out = { online: null, title: "", artist: "", live: false, recent: [] };
+  if (j && typeof j.is_online === "boolean") {
+    out.online = j.is_online; var np = j.now_playing && j.now_playing.song; if (np) { out.title = np.title || ""; out.artist = np.artist || ""; }
+    out.live = !!(j.live && j.live.is_live); if (Array.isArray(j.song_history)) out.recent = j.song_history.slice(0, 6).map(function(x){ return x.song; }).filter(Boolean).map(function(x){ return { title: x.title, artist: x.artist }; });
+  } else if (j && j.icestats) { var src = j.icestats.source; if (Array.isArray(src)) src = src[0]; out.online = !!src; if (src) { out.title = src.title || ""; out.artist = src.artist || ""; } }
+  return out;
+}
+function pageRadio(){
+  var R = radioConf(), badge = $("#radio-badge"), say = $("#radio-say"), box = $("#radio-listen"), now = $("#radio-now"), prog = $("#radio-prog"), sched = $("#radio-schedule"), recent = $("#radio-recent"), recentWrap = $("#radio-recent-wrap"), pl = $("#radio-playlist");
+  function setBadge(kind, label, text){ badge.className = "badge " + kind; badge.textContent = label; say.textContent = text || ""; }
+  var a = null, listening = false, dead = null;
+  window.TSC_RADIO_STOP = function(){ if (a && listening) stopLive(true); };
+  function stopLive(silent){ listening = false; clearTimeout(dead); if (a) { a.pause(); a.removeAttribute("src"); try { a.load(); } catch(e){} } if (btn) btn.textContent = "Listen Live"; if (btn) btn.setAttribute("aria-pressed", "false"); if (!silent) setBadge("", "Stopped", "Press Listen Live to tune in again."); else setBadge("", "Stopped", "Playback moved to the recorded message you chose."); }
+  var btn = null;
+  clear(box);
+  if (R.streamUrl && !isHttps(R.streamUrl)) { setBadge("closed", "Setup needed", "The stream address must start with https:// so it can play on this secure website."); }
+  else if (R.streamUrl) {
+    a = document.createElement("audio"); a.preload = "none";
+    btn = h("button", { "class": "btn btn-gold listen-btn", type: "button", "aria-pressed": "false", text: "Listen Live" });
+    box.appendChild(btn); box.appendChild(h("p", { "class": "help", text: "The station is live only when this player confirms it is receiving audio." }));
+    setBadge("", "Ready", "Press Listen Live. We will tell you honestly if the station is not broadcasting.");
+    btn.addEventListener("click", function(){
+      if (listening) { stopLive(); return; }
+      if (AUDIO_PLAYER && AUDIO_PLAYER.audio && !AUDIO_PLAYER.audio.paused) AUDIO_PLAYER.audio.pause();
+      listening = true; btn.textContent = "Stop"; btn.setAttribute("aria-pressed", "true"); setBadge("", "Connecting", "Connecting to the live stream\u2026");
+      a.src = R.streamUrl + (R.streamUrl.indexOf("?") > -1 ? "&" : "?") + "t=" + Date.now(); var pr = a.play(); if (pr && pr.catch) pr.catch(function(e){ if (e && e.name === "NotAllowedError") { listening = false; btn.textContent = "Listen Live"; setBadge("", "Ready", "Please press Listen Live again."); } });
+      clearTimeout(dead); dead = setTimeout(function(){ if (listening && a.paused) { stopLive(true); setBadge("closed", "Offline", "The station is not broadcasting right now. Please try again later."); } }, 20000);
+    });
+    a.addEventListener("playing", function(){ clearTimeout(dead); if (listening) setBadge("ok", "On air", "You are listening to the live stream."); });
+    a.addEventListener("waiting", function(){ if (listening) setBadge("", "Buffering", "Buffering\u2026"); });
+    a.addEventListener("error", function(){ if (!listening) return; stopLive(true); setBadge("closed", "Offline", "The station is not broadcasting right now, or the connection failed. Please try again later."); });
+    a.addEventListener("ended", function(){ if (listening) { stopLive(true); setBadge("closed", "Offline", "The broadcast has ended."); } });
+  } else if (R.embedUrl && isHttps(R.embedUrl)) {
+    box.appendChild(h("iframe", { src: R.embedUrl, title: "TSC Radio player", loading: "lazy", allow: "autoplay; encrypted-media", sandbox: "allow-scripts allow-same-origin allow-popups allow-forms", style: "width:100%;height:340px;border:0;border-radius:14px;background:#fff" }));
+    if (R.websiteUrl && isHttps(R.websiteUrl)) box.appendChild(h("p", { style: "margin-top:.8rem" }, [btn2("Open the full radio page", R.websiteUrl)]));
+    setBadge("", "Player", "Use the player below. It shows whether the station is currently broadcasting.");
+  } else if (R.embedUrl) { setBadge("closed", "Setup needed", "The player address must start with https://."); }
+  else { setBadge("closed", "Not on air yet", "TSC Radio is being set up. In the meantime you can listen to recorded messages below."); box.appendChild(h("p", { text: "The live station has not been connected yet. We will announce it when it starts." })); }
+  function btn2(t, u){ return h("a", { "class": "btn btn-navy btn-sm", href: u, target: "_blank", rel: "noopener", text: t }); }
+
+  // programme schedule (planned programmes, not proof that the station is live)
+  dbList("radio_schedule", "active=eq.true&select=*&order=day_of_week.asc,start_time.asc", []).then(function(rows){
+    clear(sched); clear(prog);
+    if (!rows.length) { sched.appendChild(emptyBox("The programme schedule will be published soon", "Programmes and times will be listed here once confirmed.", null)); return; }
+    var names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], nowP = lagosDayMin(new Date()), cur = null, nxt = null;
+    rows.forEach(function(r){ if (r.day_of_week === nowP.dow && hmMin(r.start_time) <= nowP.min && nowP.min < hmMin(r.end_time)) cur = r; });
+    if (!cur) { var best = null; rows.forEach(function(r){ var d = ((r.day_of_week - nowP.dow + 7) % 7) * 1440 + hmMin(r.start_time) - nowP.min; if (d <= 0) d += 7 * 1440; if (best === null || d < best.d) best = { d: d, r: r }; }); nxt = best && best.r; }
+    if (cur) prog.appendChild(h("p", null, [h("strong", { text: "On the schedule now: " + cur.title }), " (" + fmt12(cur.start_time) + " to " + fmt12(cur.end_time) + ")"])); else if (nxt) prog.appendChild(h("p", null, [h("strong", { text: "Next on the schedule: " + nxt.title }), " (" + names[nxt.day_of_week] + ", " + fmt12(nxt.start_time) + ")"]));
+    prog.appendChild(h("p", { "class": "help", text: "This is the planned schedule. The player above tells you whether the station is actually on air." }));
+    for (var d = 0; d < 7; d++) { var day = rows.filter(function(r){ return r.day_of_week === d; }); if (!day.length) continue; var list = h("ul", { "class": "rows" }); day.forEach(function(r){ list.appendChild(h("li", null, [h("div", null, [h("strong", { text: fmt12(r.start_time) + " to " + fmt12(r.end_time), style: "color:var(--navy)" }), h("br"), h("span", { "class": "badge", text: r.kind === "live" ? "Live" : "Recorded" })]), h("div", null, [h("h3", { text: r.title, style: "font-size:1.4rem" }), r.speaker ? h("p", { "class": "meta", text: r.speaker }) : null, r.description ? h("p", { text: r.description }) : null])])); }); sched.appendChild(h("div", { style: d === nowP.dow ? "border-left:4px solid var(--gold);padding-left:1rem;margin-bottom:1.6rem" : "margin-bottom:1.6rem" }, [h("h3", { text: names[d] + (d === nowP.dow ? " (today)" : ""), style: "margin-bottom:.4rem" }), list])); }
+  }).catch(function(){ clear(sched); sched.appendChild(emptyBox("We could not load the schedule right now", "Please try again shortly.", null)); });
+
+  // optional status feed (Icecast status-json or AzuraCast nowplaying), only if the provider allows it
+  if (R.statusUrl && isHttps(R.statusUrl)) {
+    var tmr = null;
+    var poll = function(){ if (document.hidden) return; fetch(R.statusUrl, { cache: "no-store" }).then(function(r){ return r.json(); }).then(function(j){
+      var st = parseStation(j); clear(now);
+      if (st.title) now.appendChild(h("p", null, [h("strong", { text: "Now playing: " + st.title }), st.artist ? " | " + st.artist : ""])); else now.appendChild(h("p", { text: "Now playing details are not available right now." }));
+      if (st.online === true && !listening) setBadge("ok", st.live ? "Live broadcast" : "On air", st.live ? "A live broadcast is in progress." : "The station is on air.");
+      if (st.online === false && !listening) setBadge("closed", "Offline", "The station is offline at the moment.");
+      if (st.recent.length) { recentWrap.hidden = false; clear(recent); var ul = h("ul", { "class": "rows" }); st.recent.forEach(function(x){ ul.appendChild(h("li", null, [h("div", { text: x.title || "" }), h("p", { text: x.artist || "" })])); }); recent.appendChild(ul); }
+    }).catch(function(){ clear(now); now.appendChild(h("p", { "class": "help", text: "Live status is not available from the radio platform right now." })); }); };
+    poll(); tmr = setInterval(poll, 20000);
+  } else { now.appendChild(h("p", { "class": "help", text: "Now playing details appear here when the radio platform provides them." })); }
+
+  // recorded messages as a continuous playlist (clearly NOT a live broadcast)
+  fetchAudio({ sort: "new" }, 0, 50).then(function(r){
+    clear(pl); var items = r.rows || [];
+    if (!items.length) { pl.appendChild(h("p", { text: "Recorded messages will appear here as soon as they are published in the Audio Library." })); return; }
+    var P = audioPlayer(), go = h("button", { "class": "btn btn-navy", type: "button", text: "Play recorded messages continuously" });
+    go.addEventListener("click", function(){ P.setAutonext(true); P.playItem(items[0], items); });
+    pl.appendChild(h("p", { text: items.length + " recorded message" + (items.length === 1 ? "" : "s") + " ready. They play one after another." })); pl.appendChild(go); pl.appendChild(h("p", { "class": "help", text: "This is a recorded playlist from the Audio Library. It is not a live broadcast." }));
+  }).catch(function(){ clear(pl); pl.appendChild(h("p", { text: "We could not load the recorded messages right now." })); });
+}
+
 /* ---------- boot ---------- */
-var pages = { home: pageHome, visit: pageVisit, programmes: pageProgrammes, programme: pageProgramme, devotional: pageDevotional, bible: pageBible, believers: function(){ pageBelievers(); bindWalk(); }, sermons: pageSermons, gallery: pageGallery, membership: pageMembership, prayer: pagePrayer, testimony: pageTestimony, contact: pageContact, give: pageGive, audio: pageAudio };
+var pages = { home: pageHome, visit: pageVisit, programmes: pageProgrammes, programme: pageProgramme, devotional: pageDevotional, bible: pageBible, believers: function(){ pageBelievers(); bindWalk(); }, sermons: pageSermons, gallery: pageGallery, membership: pageMembership, prayer: pagePrayer, testimony: pageTestimony, contact: pageContact, give: pageGive, audio: pageAudio, radio: pageRadio };
 initChrome(); addNavExtras(); bindChrome();
 loadSettings().then(function(){ bindChrome(); if (pages[PAGE]) pages[PAGE](); }).catch(function(){ if (pages[PAGE]) pages[PAGE](); });
 })();
