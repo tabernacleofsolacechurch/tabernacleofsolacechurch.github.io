@@ -583,12 +583,12 @@ function pageAudio(){
 
 /* ---------- TSC RADIO ---------- */
 function radioConf(){
-  var r = { provider: "", embedUrl: "", streamUrl: "", statusUrl: "", websiteUrl: "" }, c = CFG.radio || {}, s = SET.radio || {};
+  var r = { provider: "", embedUrl: "", streamUrl: "", statusUrl: "", websiteUrl: "", casterToken: "", casterChannel: "", casterTheme: "light", casterColor: "D4AF37" }, c = CFG.radio || {}, s = SET.radio || {};
   Object.keys(r).forEach(function(k){ if (c[k]) r[k] = c[k]; });
-  [["provider", "provider"], ["embed_url", "embedUrl"], ["stream_url", "streamUrl"], ["status_url", "statusUrl"], ["website_url", "websiteUrl"]].forEach(function(p){ if (s[p[0]]) r[p[1]] = s[p[0]]; });
+  [["provider", "provider"], ["embed_url", "embedUrl"], ["stream_url", "streamUrl"], ["status_url", "statusUrl"], ["website_url", "websiteUrl"], ["caster_token", "casterToken"], ["caster_channel", "casterChannel"], ["caster_theme", "casterTheme"], ["caster_color", "casterColor"]].forEach(function(p){ if (s[p[0]]) r[p[1]] = s[p[0]]; });
   return r;
 }
-function isHttps(u){ try { return new URL(u).protocol === "https:"; } catch(e){ return false; } }
+function isHttps(u){ if (!/^https:\/\/[^\s<>"']+$/.test(String(u || ""))) return false; try { return new URL(u).protocol === "https:"; } catch(e){ return false; } }
 function lagosDayMin(d){
   var p = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d), o = {}; p.forEach(function(x){ o[x.type] = x.value; });
   return { dow: { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 }[o.weekday], min: (+o.hour) * 60 + (+o.minute) };
@@ -628,6 +628,14 @@ function pageRadio(){
     a.addEventListener("waiting", function(){ if (listening) setBadge("", "Buffering", "Buffering\u2026"); });
     a.addEventListener("error", function(){ if (!listening) return; stopLive(true); setBadge("closed", "Offline", "The station is not broadcasting right now, or the connection failed. Please try again later."); });
     a.addEventListener("ended", function(){ if (listening) { stopLive(true); setBadge("closed", "Offline", "The broadcast has ended."); } });
+  } else if (/^[0-9a-f-]{36}$/i.test(R.casterToken || "") && /^[0-9a-f-]{36}$/i.test(R.casterChannel || "")) {
+    var holder = h("div", { "class": "cstrEmbed", "data-type": "podcastsPlayer", "data-publicToken": R.casterToken, "data-theme": /^(light|dark)$/.test(R.casterTheme) ? R.casterTheme : "light", "data-color": /^[0-9a-fA-F]{6}$/.test(R.casterColor) ? R.casterColor : "D4AF37", "data-channelId": R.casterChannel, "data-rendered": "false", style: "min-height:220px" });
+    box.appendChild(holder);
+    var note = h("p", { "class": "help", text: "The player is provided by Caster.fm and loads from their servers. If it does not appear, your connection may be blocking it." });
+    box.appendChild(note);
+    if (R.websiteUrl && isHttps(R.websiteUrl)) box.appendChild(h("p", { style: "margin-top:.8rem" }, [btn2("Open the full radio page", R.websiteUrl)]));
+    var sc = document.createElement("script"); sc.src = "https://cdn.cloud.caster.fm//widgets/embed.js"; sc.async = true; document.body.appendChild(sc);
+    setBadge("", "Player", "Use the player below. It shows whether the station is currently broadcasting.");
   } else if (R.embedUrl && isHttps(R.embedUrl)) {
     box.appendChild(h("iframe", { src: R.embedUrl, title: "TSC Radio player", loading: "lazy", allow: "autoplay; encrypted-media", sandbox: "allow-scripts allow-same-origin allow-popups allow-forms", style: "width:100%;height:340px;border:0;border-radius:14px;background:#fff" }));
     if (R.websiteUrl && isHttps(R.websiteUrl)) box.appendChild(h("p", { style: "margin-top:.8rem" }, [btn2("Open the full radio page", R.websiteUrl)]));

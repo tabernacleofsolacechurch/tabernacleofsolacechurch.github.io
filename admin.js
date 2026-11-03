@@ -343,16 +343,26 @@ function radioSettings(main){
   var defs = [["provider", "Radio provider name (optional)", "e.g. Caster.fm"], ["embed_url", "Player widget address (https://...)", "The embed or widget link your provider gives you. Shown as a player on the radio page."], ["stream_url", "Direct stream address (https://...)", "Only if your plan includes a direct stream link. Enables the custom Listen Live button."], ["status_url", "Status feed address (optional)", "Icecast status-json.xsl or AzuraCast now-playing address, if your provider allows it."], ["website_url", "Provider radio page (optional)", "A link to the full radio page on the provider's site."]];
   var inputs = {};
   defs.forEach(function(d){ var i = h("input", { type: "text", id: "rs_" + d[0], placeholder: d[2] }); inputs[d[0]] = i; form.appendChild(h("div", { "class": "field" }, [h("label", { "for": "rs_" + d[0], text: d[1] }), i, h("p", { "class": "help", text: d[2] })])); });
+  var cur = {}; var casterInfo = h("p", { "class": "help", text: "" });
+  var code = h("textarea", { id: "rs_caster_code", placeholder: "Paste the whole Caster.fm player code here (it starts with <div data-type=\"podcastsPlayer\" ...)", style: "min-height:130px" });
+  var clearB = h("button", { "class": "btn danger sm", type: "button", text: "Disconnect the Caster.fm player", hidden: true });
+  form.insertBefore(h("div", { "class": "field" }, [h("label", { "for": "rs_caster_code", text: "Caster.fm player code (recommended on the free plan)" }), code, casterInfo, clearB, h("p", { "class": "help", text: "Paste the embed code from your Caster.fm dashboard. Only the public player ID is saved, never the code itself. Never paste passwords or private tokens." })]), form.firstChild);
   var save = h("button", { "class": "btn gold", type: "submit", text: "Save radio settings" }); form.appendChild(save);
   main.appendChild(out); main.appendChild(form);
-  api("site_settings?key=eq.radio&select=value").then(function(r){ var v = (r && r[0] && r[0].value) || {}; Object.keys(inputs).forEach(function(k){ inputs[k].value = v[k] || ""; }); }).catch(function(e){ out.appendChild(msg("err", e.message)); });
+  api("site_settings?key=eq.radio&select=value").then(function(r){ var v = (r && r[0] && r[0].value) || {}; cur = v; Object.keys(inputs).forEach(function(k){ inputs[k].value = v[k] || ""; }); if (v.caster_token && v.caster_channel) { casterInfo.textContent = "A Caster.fm player is connected (channel " + String(v.caster_channel).slice(0, 8) + "\u2026)."; clearB.hidden = false; } }).catch(function(e){ out.appendChild(msg("err", e.message)); });
   form.addEventListener("submit", function(e){
     e.preventDefault(); clear(out); var val = {}, bad = null;
-    Object.keys(inputs).forEach(function(k){ var x = inputs[k].value.trim(); if (k !== "provider" && x && !/^https:\/\//i.test(x)) bad = "Addresses must start with https://"; val[k] = x; });
+    Object.keys(inputs).forEach(function(k){ var x = inputs[k].value.trim(); if (k !== "provider" && x && !/^https:\/\/[^\s<>"']+$/i.test(x)) bad = "Addresses must be a single link starting with https:// (no spaces and no code). To use a Caster.fm player, paste its code into the Caster.fm box instead."; val[k] = x; });
+    ["caster_token", "caster_channel", "caster_theme", "caster_color"].forEach(function(k){ if (cur[k]) val[k] = cur[k]; });
+    var cc = code.value.trim();
+    if (cc) { var tk = /data-publictoken\s*=\s*["']([0-9a-f-]{36})["']/i.exec(cc), ch = /data-channelid\s*=\s*["']([0-9a-f-]{36})["']/i.exec(cc), th = /data-theme\s*=\s*["'](light|dark)["']/i.exec(cc), cl = /data-color\s*=\s*["']([0-9a-f]{6})["']/i.exec(cc);
+      if (!tk || !ch) { out.appendChild(msg("err", "That does not look like a Caster.fm player code. It should contain data-publicToken and data-channelId.")); return; }
+      val.caster_token = tk[1]; val.caster_channel = ch[1]; val.caster_theme = th ? th[1].toLowerCase() : "light"; val.caster_color = cl ? cl[1] : "D4AF37"; }
     if (bad) { out.appendChild(msg("err", bad)); return; }
     save.disabled = true;
     api("site_settings", { method: "POST", body: { key: "radio", value: val }, headers: { Prefer: "resolution=merge-duplicates,return=minimal" } }).then(function(){ save.disabled = false; out.appendChild(msg("ok", "Saved. The radio page uses these addresses straight away.")); }).catch(function(err){ save.disabled = false; out.appendChild(msg("err", err.message)); });
   });
+  clearB.addEventListener("click", function(){ if (!confirm("Remove the Caster.fm player from the radio page?")) return; var v2 = Object.assign({}, cur); delete v2.caster_token; delete v2.caster_channel; delete v2.caster_theme; delete v2.caster_color; api("site_settings", { method: "POST", body: { key: "radio", value: v2 }, headers: { Prefer: "resolution=merge-duplicates,return=minimal" } }).then(function(){ cur = v2; clearB.hidden = true; casterInfo.textContent = ""; clear(out); out.appendChild(msg("ok", "The Caster.fm player was removed.")); }).catch(function(e){ clear(out); out.appendChild(msg("err", e.message)); }); });
   main.appendChild(h("div", { "class": "panel" }, [h("h3", { text: "Going live and automation" }), h("p", { text: "Start and stop live broadcasts, upload playlists and see listener statistics in your radio provider's own dashboard. This site shows the station on the Radio page and keeps the weekly schedule (Radio schedule)." })]));
 }
 
