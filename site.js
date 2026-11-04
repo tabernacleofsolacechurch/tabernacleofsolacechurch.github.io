@@ -629,7 +629,7 @@ function pageRadio(){
     a.addEventListener("error", function(){ if (!listening) return; stopLive(true); setBadge("closed", "Offline", "The station is not broadcasting right now, or the connection failed. Please try again later."); });
     a.addEventListener("ended", function(){ if (listening) { stopLive(true); setBadge("closed", "Offline", "The broadcast has ended."); } });
   } else if (/^[0-9a-f-]{36}$/i.test(R.casterToken || "") && /^[0-9a-f-]{36}$/i.test(R.casterChannel || "")) {
-    var holder = h("div", { "class": "cstrEmbed", "data-type": "podcastsPlayer", "data-publicToken": R.casterToken, "data-theme": /^(light|dark)$/.test(R.casterTheme) ? R.casterTheme : "light", "data-color": /^[0-9a-fA-F]{6}$/.test(R.casterColor) ? R.casterColor : "D4AF37", "data-channelId": R.casterChannel, "data-rendered": "false", style: "min-height:220px" });
+    var holder = h("div", { "class": "cstrEmbed", "data-type": "podcastsPlayer", "data-publicToken": R.casterToken, "data-theme": /^(light|dark)$/.test(R.casterTheme) ? R.casterTheme : "light", "data-color": /^[0-9a-fA-F]{6}$/.test(R.casterColor) ? R.casterColor : "D4AF37", "data-channelId": R.casterChannel, "data-rendered": "false", style: "min-height:220px" }, [h("a", { href: "https://www.caster.fm", text: "Shoutcast Hosting" }), document.createTextNode(" "), h("a", { href: "https://www.caster.fm", text: "Stream Hosting" }), document.createTextNode(" "), h("a", { href: "https://www.caster.fm", text: "Radio Server Hosting" })]);
     box.appendChild(holder);
     var note = h("p", { "class": "help", text: "The player is provided by Caster.fm and loads from their servers. If it does not appear, your connection may be blocking it." });
     box.appendChild(note);
