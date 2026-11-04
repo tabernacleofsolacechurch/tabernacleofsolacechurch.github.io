@@ -583,9 +583,10 @@ function pageAudio(){
 
 /* ---------- TSC RADIO ---------- */
 function radioConf(){
-  var r = { provider: "", embedUrl: "", streamUrl: "", statusUrl: "", websiteUrl: "", casterToken: "", casterChannel: "", casterTheme: "light", casterColor: "D4AF37" }, c = CFG.radio || {}, s = SET.radio || {};
+  var r = { provider: "", embedUrl: "", streamUrl: "", statusUrl: "", websiteUrl: "", casterToken: "", casterChannel: "", casterTheme: "light", casterColor: "D4AF37", casterAttrs: null, casterScript: "" }, c = CFG.radio || {}, s = SET.radio || {};
   Object.keys(r).forEach(function(k){ if (c[k]) r[k] = c[k]; });
   [["provider", "provider"], ["embed_url", "embedUrl"], ["stream_url", "streamUrl"], ["status_url", "statusUrl"], ["website_url", "websiteUrl"], ["caster_token", "casterToken"], ["caster_channel", "casterChannel"], ["caster_theme", "casterTheme"], ["caster_color", "casterColor"]].forEach(function(p){ if (s[p[0]]) r[p[1]] = s[p[0]]; });
+  if (s.caster_attrs && typeof s.caster_attrs === "object") r.casterAttrs = s.caster_attrs; if (typeof s.caster_script === "string") r.casterScript = s.caster_script;
   return r;
 }
 function isHttps(u){ if (!/^https:\/\/[^\s<>"']+$/.test(String(u || ""))) return false; try { return new URL(u).protocol === "https:"; } catch(e){ return false; } }
@@ -628,13 +629,16 @@ function pageRadio(){
     a.addEventListener("waiting", function(){ if (listening) setBadge("", "Buffering", "Buffering\u2026"); });
     a.addEventListener("error", function(){ if (!listening) return; stopLive(true); setBadge("closed", "Offline", "The station is not broadcasting right now, or the connection failed. Please try again later."); });
     a.addEventListener("ended", function(){ if (listening) { stopLive(true); setBadge("closed", "Offline", "The broadcast has ended."); } });
-  } else if (/^[0-9a-f-]{36}$/i.test(R.casterToken || "") && /^[0-9a-f-]{36}$/i.test(R.casterChannel || "")) {
-    var holder = h("div", { "class": "cstrEmbed", "data-type": "podcastsPlayer", "data-publicToken": R.casterToken, "data-theme": /^(light|dark)$/.test(R.casterTheme) ? R.casterTheme : "light", "data-color": /^[0-9a-fA-F]{6}$/.test(R.casterColor) ? R.casterColor : "D4AF37", "data-channelId": R.casterChannel, "data-rendered": "false", style: "min-height:220px" }, [h("a", { href: "https://www.caster.fm", text: "Shoutcast Hosting" }), document.createTextNode(" "), h("a", { href: "https://www.caster.fm", text: "Stream Hosting" }), document.createTextNode(" "), h("a", { href: "https://www.caster.fm", text: "Radio Server Hosting" })]);
+  } else if ((R.casterAttrs && R.casterAttrs.type && R.casterAttrs.publictoken) || (/^[0-9a-f-]{36}$/i.test(R.casterToken || "") && /^[0-9a-f-]{36}$/i.test(R.casterChannel || ""))) {
+    var at = R.casterAttrs && R.casterAttrs.type ? R.casterAttrs : { type: "podcastsPlayer", publictoken: R.casterToken, channelid: R.casterChannel, theme: R.casterTheme, color: R.casterColor };
+    var hattrs = { "class": "cstrEmbed", "data-rendered": "false", style: "min-height:220px" };
+    Object.keys(at).forEach(function(k){ var v = String(at[k]); if (/^[a-z0-9-]{2,40}$/.test(k) && k !== "rendered" && /^[A-Za-z0-9._#%\/:@ -]{0,120}$/.test(v)) hattrs["data-" + k] = v; });
+    var holder = h("div", hattrs, [h("a", { href: "https://www.caster.fm", text: "Shoutcast Hosting" }), document.createTextNode(" "), h("a", { href: "https://www.caster.fm", text: "Stream Hosting" }), document.createTextNode(" "), h("a", { href: "https://www.caster.fm", text: "Radio Server Hosting" })]);
     box.appendChild(holder);
-    var note = h("p", { "class": "help", text: "The player is provided by Caster.fm and loads from their servers. If it does not appear, your connection may be blocking it." });
-    box.appendChild(note);
+    box.appendChild(h("p", { "class": "help", text: "The player is provided by Caster.fm and loads from their servers. If it does not appear, your connection may be blocking it." }));
     if (R.websiteUrl && isHttps(R.websiteUrl)) box.appendChild(h("p", { style: "margin-top:.8rem" }, [btn2("Open the full radio page", R.websiteUrl)]));
-    var sc = document.createElement("script"); sc.src = "https://cdn.cloud.caster.fm//widgets/embed.js"; sc.async = true; document.body.appendChild(sc);
+    var srcOk = /^(https?:)?\/\/cdn\.cloud\.caster\.fm\/{1,2}widgets\/[A-Za-z0-9._-]+\.js$/.test(R.casterScript || "");
+    var sc = document.createElement("script"); sc.src = srcOk ? R.casterScript.replace(/^\/\//, "https://") : "https://cdn.cloud.caster.fm//widgets/embed.js"; sc.async = true; document.body.appendChild(sc);
     setBadge("", "Player", "Use the player below. It shows whether the station is currently broadcasting.");
   } else if (R.embedUrl && isHttps(R.embedUrl)) {
     box.appendChild(h("iframe", { src: R.embedUrl, title: "TSC Radio player", loading: "lazy", allow: "autoplay; encrypted-media", sandbox: "allow-scripts allow-same-origin allow-popups allow-forms", style: "width:100%;height:340px;border:0;border-radius:14px;background:#fff" }));
