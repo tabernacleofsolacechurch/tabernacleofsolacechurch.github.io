@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14303b">
+<title>TSC Assistant | Tabernacle of Solace Church</title>
+<link rel="icon" id="fav" href="data:,">
+<style>
+:root{
+  --bg:#e9eff1; --panel:#ffffff; --ink:#14262e; --muted:#5d727b;
+  --brand:#14303b; --brand-ink:#f4f1e8; --gold:#b8862f; --gold-soft:#f3e7cc;
+  --user:#14303b; --user-ink:#f4f1e8; --line:#d3dde1;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#0c1a20; --panel:#15262e; --ink:#e8eef0; --muted:#97aab2;
+    --brand:#0f232b; --brand-ink:#f4f1e8; --gold:#d6a850; --gold-soft:#2c2a1f;
+    --user:#d6a850; --user-ink:#1a1608; --line:#27404a;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.5;display:flex;justify-content:center;
+}
+.app{width:100%;max-width:640px;height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
+header{
+  background:var(--brand);color:var(--brand-ink);
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+  display:flex;align-items:center;gap:12px;border-bottom:3px solid var(--gold);
+}
+.crest{
+  width:42px;height:42px;border-radius:50%;flex:none;
+  background:#fff;display:grid;place-items:center;overflow:hidden;border:2px solid var(--gold);
+}
+.crest img{width:100%;height:100%;object-fit:cover;display:block}
+.wel{display:block;width:104px;height:104px;border-radius:14px;margin:0 0 10px;border:1px solid var(--line)}
+.title{font-family:Georgia,"Times New Roman",serif;font-size:18px;line-height:1.2}
+.sub{font-size:12.5px;opacity:.8}
+.head-wa{
+  margin-left:auto;color:var(--brand-ink);text-decoration:none;font-size:13px;
+  border:1px solid rgba(244,241,232,.45);padding:7px 12px;border-radius:999px;white-space:nowrap;
+}
+.head-wa:focus-visible,.chip:focus-visible,.btn:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+#log{flex:1;overflow-y:auto;padding:16px 14px 8px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+.msg{max-width:88%;padding:11px 14px;border-radius:18px;word-wrap:break-word;font-size:15.5px}
+.msg.bot{background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start}
+.msg.me{background:var(--user);color:var(--user-ink);border-bottom-right-radius:5px;align-self:flex-end}
+.msg p+p{margin-top:8px}
+.msg strong{font-family:Georgia,"Times New Roman",serif;font-weight:700}
+.msg ul{margin:6px 0 2px 18px}
+.msg li{margin:2px 0}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btn{
+  display:inline-block;text-decoration:none;font-size:14px;font-weight:600;font-family:inherit;
+  background:var(--gold);color:#1a1608;padding:9px 14px;border-radius:10px;border:0;cursor:pointer;
+}
+.btn.alt{background:var(--gold-soft);color:var(--ink);border:1px solid var(--gold)}
+.typing{display:flex;gap:5px;padding:14px 16px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.typing i{animation:none;opacity:.7}#log{scroll-behavior:auto}}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:8px 14px;scrollbar-width:none;border-top:1px solid var(--line);background:var(--bg)}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;border:1px solid var(--gold);background:var(--panel);color:var(--ink);
+  padding:8px 14px;border-radius:999px;font-size:14px;cursor:pointer;font-family:inherit;
+}
+.chip:active{background:var(--gold-soft)}
+form{display:flex;gap:8px;padding:8px 14px calc(12px + env(safe-area-inset-bottom));background:var(--bg)}
+input{
+  flex:1;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:999px;padding:12px 16px;font-size:16px;font-family:inherit;min-width:0;
+}
+form button{
+  border:0;background:var(--brand);color:var(--brand-ink);border-radius:999px;
+  padding:0 20px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+@media (prefers-color-scheme: dark){form button{background:var(--gold);color:#1a1608}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="crest"><img data-logo alt="Tabernacle of Solace Church logo" width="42" height="42"></div>
+    <div>
+      <div class="title">Tabernacle of Solace</div>
+      <div class="sub">Church assistant</div>
+    </div>
+    <a class="head-wa" id="headWa" href="#" target="_blank" rel="noopener">WhatsApp us</a>
+  </header>
+  <main id="log" aria-live="polite" aria-label="Conversation"></main>
+  <div class="chips" id="chips" aria-label="Suggested questions"></div>
+  <form id="form" autocomplete="off">
+    <input id="box" type="text" placeholder="Type your question" aria-label="Type your question" enterkeyhint="send">
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+/* ============================================================
+   CHURCH DETAILS. Edit only this block to update the bot.
+   ============================================================ */
+const C = {
+  church: "Tabernacle of Solace Church",
+  short: "TSC",
+  whatsapp: "2348147560000",
+  whatsappDisplay: "+234 814 756 0000",
+  email: "tabernacleofsolacechurch@gmail.com",
+  website: "https://tabernacleofsolacechurch.github.io/",
+  apostleSite: "https://apostleoluwaseunisrael.com",
+  radioLink: "https://tabernacleofsolacechurch.github.io/radio.html",
+  devotionalBase: "https://tabernacleofsolacechurch.github.io/devotional.html",
+  venue: "Dominion Hall, No 76, MKO Abiola Way, behind Henrytee Motors, Ring Road, Ibadan",
+  mapLink: "https://www.google.com/maps/search/?api=1&query=Dominion+Hall+76+MKO+Abiola+Way+Ring+Road+Ibadan",
+  bank: { number: "0132038855", name: "OLUWASEUN SAMUEL ISRAEL", bank: "Guaranty Trust Bank (GTB)" },
+  vision: "To be a tabernacle of solace for the nations: a place where the broken find comfort, the bound find freedom, and the weary find rest.",
+  mission: "To restore broken souls and renew faith in Jesus Christ through the clear preaching of the Word, prophetic ministry, deliverance and loving discipleship.",
+  /* Optional: URL of an AI backend to answer questions the bot cannot match. Leave empty to stay free and offline. */
+  aiEndpoint: ""
+};
+
+const BOOKS = [
+  { t:"The Door Is Not Locked", u:"https://selar.com/k417w02q4q", m:["door is not locked","door not locked"], d:"A practical, honest guide for anyone who feels stuck, showing how to rise again and walk into the life you were created for." },
+  { t:"Kissed by Judas Built by God", u:"https://selar.com/6o37w6m9xl", m:["judas","kissed by judas"], d:"Healing from betrayal, and how God uses painful seasons to build strength, character and purpose." },
+  { t:"Where Is the Church", u:"https://selar.com/260d87809d", m:["where is the church"], needBook:true, d:"A prophetic call to the Church to return to holiness, prayer, power and genuine intimacy with Christ." },
+  { t:"Discharged and Acquitted", u:"https://selar.com/9hj741k757", m:["discharged","acquitted"], d:"Freedom from guilt, condemnation and unforgiveness through the verdict Heaven has already declared over your life." },
+  { t:"Secrets That Destroy", u:"https://selar.com/766771824h", m:["secrets that destroy"], d:"Bringing hidden things into the light, so that restoration can begin and nothing remains buried." },
+  { t:"The Power of Financial Wisdom", u:"https://selar.com/5103707y16", m:["financial wisdom"], d:"Kingdom principles for moving from financial survival to financial authority." },
+  { t:"Breaking Free From Addiction", u:"https://selar.com/6y7u1h1t04", m:["addiction"], d:"Confronting the habits and patterns that steal your freedom, and rebuilding discipline and self control." },
+  { t:"Youth and Burning", u:"https://selar.com/7h3169c879", m:["youth and burning","young and burning"], d:"A prophetic call to young believers to live with fire, purity and purpose." },
+  { t:"Clothed With Dominion", u:"https://selar.com/3b1133393x", m:["clothed with dominion","clothed with"], d:"Eighteen chapters on the kingdom authority that is already yours in Christ." },
+  { t:"The Cost of the Cross", u:"https://selar.com/k715g511hd", m:["cost of the cross"], d:"The true cost of discipleship and following Jesus as Lord, not only as Saviour." },
+  { t:"Understanding the Prophetic", u:"https://selar.com/78g1533174", m:["understanding the prophetic"], d:"Clear, balanced and biblical teaching on the prophetic, and how to discern genuine voices." }
+];
+
+/* ---------- logo ---------- */
+const LOGO = "data:image/webp;base64,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";
+document.querySelectorAll("[data-logo]").forEach(i => i.src = LOGO);
+document.getElementById("fav").href = LOGO;
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const log = $("#log"), chipsEl = $("#chips"), box = $("#box");
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const wa = t => `https://wa.me/${C.whatsapp}${t ? "?text=" + encodeURIComponent(t) : ""}`;
+const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
+$("#headWa").href = wa(`Hello ${C.church}`);
+
+const MAIN_CHIPS = ["Morning Altar","Mercy Encounter","Prayer request","Become a member","Giving","About Apostle Oluwaseun","Books","TSC Radio","Daily devotional","Invite the Apostle","Contact"];
+
+function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim(); }
+function lev(a,b){
+  if (Math.abs(a.length-b.length) > 1) return 2;
+  const m = Array.from({length:a.length+1},(_,i)=>[i]);
+  for (let j=1;j<=b.length;j++) m[0][j]=j;
+  for (let i=1;i<=a.length;i++) for (let j=1;j<=b.length;j++)
+    m[i][j] = Math.min(m[i-1][j]+1, m[i][j-1]+1, m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return m[a.length][b.length];
+}
+function scoreIntent(text, words, kws){
+  let s = 0;
+  for (const k of kws){
+    if (k.includes(" ")) { if (text.includes(k)) s += 3; continue; }
+    for (const w of words){
+      if (w === k) s += 2;
+      else if (k.length >= 5 && w.length >= 5 && lev(w,k) <= 1) s += 1.5;
+    }
+  }
+  return s;
+}
+
+function render(o){
+  const d = document.createElement("div");
+  d.className = "msg bot";
+  let h = o.img ? `<img class="wel" src="${o.img}" alt="Tabernacle of Solace Church logo">` : "";
+  (o.text || "").split("\n\n").forEach(p => {
+    const lines = p.split("\n");
+    if (lines.every(l => l.startsWith("- "))) h += "<ul>" + lines.map(l => `<li>${esc(l.slice(2))}</li>`).join("") + "</ul>";
+    else h += "<p>" + esc(p).replace(/\n/g,"<br>").replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>") + "</p>";
+  });
+  if (o.links && o.links.length){
+    h += '<div class="actions">' + o.links.map(l => l.copy
+      ? `<button type="button" class="btn alt" data-copy="${esc(l.copy)}">${esc(l.label)}</button>`
+      : `<a class="btn${l.alt?" alt":""}" href="${l.url}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join("") + "</div>";
+  }
+  d.innerHTML = h;
+  return d;
+}
+function setChips(list){
+  chipsEl.innerHTML = "";
+  (list || MAIN_CHIPS).forEach(t => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = t;
+    b.onclick = () => handle(t);
+    chipsEl.appendChild(b);
+  });
+  chipsEl.scrollLeft = 0;
+}
+function scrollDown(){ log.scrollTop = log.scrollHeight; }
+function user(t){
+  const d = document.createElement("div"); d.className = "msg me"; d.textContent = t;
+  log.appendChild(d); scrollDown();
+}
+function say(o, delay = 450){
+  return new Promise(res => {
+    const t = document.createElement("div");
+    t.className = "msg bot typing"; t.innerHTML = "<i></i><i></i><i></i>";
+    log.appendChild(t); scrollDown();
+    setTimeout(() => {
+      t.remove();
+      log.appendChild(render(o));
+      setChips(o.chips);
+      scrollDown(); res();
+    }, delay);
+  });
+}
+log.addEventListener("click", e => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  const v = b.getAttribute("data-copy"), old = b.textContent;
+  const done = () => { b.textContent = "Copied"; setTimeout(() => b.textContent = old, 1800); };
+  if (navigator.clipboard) navigator.clipboard.writeText(v).then(done, done); else done();
+});
+
+const toWA = (label, msg) => ({ label, url: wa(msg) });
+
+/* ---------- answers ---------- */
+const A = {
+  greet: () => ({ img: LOGO, text:`Welcome to ${C.church}. I am the TSC assistant.\n\nAsk me about Morning Altar, Mercy Encounter, prayer, membership, giving, Apostle Oluwaseun Israel, his books, the daily devotional and TSC Radio.` }),
+
+  morning: () => ({
+    text: "**MORNING ALTAR**\n\nApostle Oluwaseun Israel leads Morning Altar live every day at 5:30 AM on TSC Online Radio, the official radio of Tabernacle of Solace Church.\n\nTune in and start your day at the altar.",
+    links: [{label:"Listen on TSC Radio", url:C.radioLink}],
+    chips: ["Mercy Encounter","Prayer request","Daily devotional","Become a member"]
+  }),
+
+  mercy: () => ({
+    text: `**MERCY ENCOUNTER**\n\nEvery second Sunday of the month\nTime: 3:00 PM\nVenue: ${C.venue}\n\nVisitors are welcome. For any change or update, please confirm on WhatsApp.`,
+    links: [{label:"Open in Maps", url:C.mapLink}, {...toWA("Confirm on WhatsApp","Hello, I would like to attend Mercy Encounter. Please confirm the next date."), alt:true}],
+    chips: ["Morning Altar","First time visitor","Become a member","Contact"]
+  }),
+
+  services: () => ({
+    text: `**Programmes at TSC**\n\n- Morning Altar: every day, 5:30 AM, live on TSC Online Radio\n- Mercy Encounter: every second Sunday of the month, 3:00 PM\n\nMercy Encounter venue: ${C.venue}.\n\nFor anything else, please confirm on WhatsApp.`,
+    links: [{label:"Open in Maps", url:C.mapLink}, {label:"TSC Radio", url:C.radioLink, alt:true}],
+    chips: ["Morning Altar","Mercy Encounter","First time visitor","Contact"]
+  }),
+
+  visitor: () => ({
+    text: `You are most welcome. First time visitors are warmly received at ${C.church}.\n\nTSC holds Mercy Encounter on every second Sunday of the month at 3:00 PM at ${C.venue}. You can also join Morning Altar every day at 5:30 AM on TSC Online Radio.\n\nFor anything else, our team will gladly help on WhatsApp.`,
+    links: [{label:"Open in Maps", url:C.mapLink}, {...toWA("Message the church","Hello, I am a first time visitor and I would like to know more about Tabernacle of Solace Church."), alt:true}],
+    chips: ["Mercy Encounter","Morning Altar","Become a member","Prayer request"]
+  }),
+
+  member: () => ({
+    text: `We would be glad to have you as part of ${C.church}.\n\nTo become a member, contact the church team. They will guide you personally and answer your questions about joining.\n\nYou can message us on WhatsApp (${C.whatsappDisplay}) or email ${C.email}.`,
+    links: [{...toWA("Ask about membership","Hello, I would like to become a member of Tabernacle of Solace Church. Please guide me.")}, {label:"Visit church website", url:C.website, alt:true}],
+    chips: ["Mercy Encounter","First time visitor","Prayer request","Contact"]
+  }),
+
+  about: () => ({
+    text: `${C.church} (${C.short}) is a Christian ministry committed to restoring broken souls and renewing faith in Jesus Christ.\n\nWe believe in the Holy Spirit. We give room for people to grow and we encourage them in their walk with God, in an atmosphere where they can encounter Jesus Christ, experience restoration and discover purpose.\n\nThe Founder and Senior Pastor is Apostle Oluwaseun Israel.`,
+    links: [{label:"Church website", url:C.website, alt:true}],
+    chips: ["Vision and mission","About Apostle Oluwaseun","Mercy Encounter","Become a member"]
+  }),
+
+  vision: () => ({
+    text: `**Vision**\n${C.vision}\n\n**Mission**\n${C.mission}`,
+    chips: ["About TSC","About Apostle Oluwaseun","Mercy Encounter","Prayer request"]
+  }),
+
+  pastor: () => ({
+    text: "**Apostle Oluwaseun Israel** is the Founder and Senior Pastor of Tabernacle of Solace Church.\n\nHe is a Christian minister committed to preaching the Gospel of Jesus Christ, teaching the Word of God, spiritual restoration, prophetic ministry, deliverance and the transformation of lives.\n\nHis ministry vision is centred on restoring broken souls, renewing faith in Jesus Christ and helping people discover their identity, freedom and purpose through the Word of God.",
+    links: [{label:"His personal website", url:C.apostleSite}],
+    chips: ["His teachings","Books","Invite the Apostle","Morning Altar"]
+  }),
+
+  teachings: () => ({
+    text: "The ministry of Apostle Oluwaseun Israel is centred on:\n\n- The Gospel of Jesus Christ\n- Teaching the Word of God\n- Spiritual restoration\n- Prophetic ministry\n- Deliverance\n- The transformation of lives\n\nYou can receive his teachings through Morning Altar, TSC Online Radio, the Audio Library, the daily devotional and his books.",
+    links: [{label:"TSC Radio", url:C.radioLink}, {label:"His website", url:C.apostleSite, alt:true}],
+    chips: ["Books","Audio library","Daily devotional","Morning Altar"]
+  }),
+
+  invite: () => ({
+    text: "To invite Apostle Oluwaseun Israel to your conference, seminar, church programme or convention, send your invitation to the official TSC WhatsApp line or by email.\n\nPlease include:\n\n- Name of your church or organisation\n- Type of programme\n- Date and time\n- Venue and city\n- Your name and phone number\n\nThe church team will review your invitation and respond to you.",
+    links: [
+      toWA("Send invitation on WhatsApp", "Hello, I would like to invite Apostle Oluwaseun Israel.\n\nChurch or organisation:\nProgramme type (conference, seminar, church programme, convention):\nDate and time:\nVenue and city:\nMy name and phone number:"),
+      {label:"Email invitation", url:`mailto:${C.email}?subject=${encodeURIComponent("Invitation for Apostle Oluwaseun Israel")}`, alt:true}
+    ],
+    chips: ["About Apostle Oluwaseun","Contact","Books"]
+  }),
+
+  freeprayer: () => ({
+    text: "Prayer at TSC and with Apostle Oluwaseun Israel is absolutely free. No one charges for prayer, and you should never be asked to pay for it.\n\nIf you would like prayer, I can help you prepare your request.",
+    chips: ["Prayer request","Morning Altar","Contact"]
+  }),
+
+  counsel: () => ({
+    text: "If you need spiritual guidance or counselling, you are welcome to reach out to the church team. You will be treated with respect, care and wisdom.\n\nMessage the official TSC WhatsApp line to begin.",
+    links: [toWA("Ask for guidance","Hello, I would like spiritual guidance. Please advise me on how to proceed.")],
+    chips: ["Prayer request","Mercy Encounter","Contact"]
+  }),
+
+  giving: () => ({
+    text: `Thank you for your heart to give. Your giving supports the work of the Gospel at TSC.\n\nAccount number: ${C.bank.number}\nAccount name: ${C.bank.name}\nBank: ${C.bank.bank}\n\nPrayer is always free. Giving is a voluntary act of love and is never a condition for prayer.`,
+    links: [{label:"Copy account number", copy:C.bank.number}, {...toWA("Confirm giving on WhatsApp","Hello, I just gave to Tabernacle of Solace Church."), alt:true}],
+    chips: ["Prayer request","Become a member","Contact"]
+  }),
+
+  books: () => ({
+    text: "Books by Apostle Oluwaseun Israel are available on Selar as digital downloads you can read on your phone.\n\nTap a title to open it, or type a book name to read about it.",
+    links: BOOKS.map(b => ({label:b.t, url:b.u, alt:true})),
+    chips: ["How to buy books","About Apostle Oluwaseun","Daily devotional","Contact"]
+  }),
+  book: b => ({
+    text: `**${b.t}**\nby Apostle Oluwaseun Israel\n\n${b.d}`,
+    links: [{label:"Get it on Selar", url:b.u}],
+    chips: ["Books","How to buy books","Contact"]
+  }),
+  buy: () => ({
+    text: "To buy a book, open its page on Selar, tap Buy now and complete payment. The book is a digital download.\n\nTap a title below. If you need help with an order, message us on WhatsApp.",
+    links: [...BOOKS.map(b => ({label:b.t, url:b.u, alt:true})), toWA("Order help on WhatsApp","Hello, I need help buying a book by Apostle Oluwaseun Israel.")],
+    chips: ["Books","Contact"]
+  }),
+
+  devotional: () => ({
+    text: "The TSC daily devotional and Bible reading on the official church website help you grow in the Word and keep consistent fellowship with God.",
+    links: [{label:"Read today's devotional", url:`${C.devotionalBase}?date=${today()}`}, {label:"Church website", url:C.website, alt:true}],
+    chips: ["Morning Altar","TSC Radio","Books"]
+  }),
+
+  radio: () => ({
+    text: "TSC Online Radio is the official broadcasting radio of Tabernacle of Solace Church. It carries spiritual teachings, messages and ministry broadcasts.\n\nApostle Oluwaseun Israel leads Morning Altar live on it every day at 5:30 AM.",
+    links: [{label:"Listen on TSC Radio", url:C.radioLink}],
+    chips: ["Morning Altar","Audio library","Daily devotional"]
+  }),
+
+  audio: () => ({
+    text: "The TSC Audio Library lets you listen to and download available audio messages and teachings. It is an official digital resource of Tabernacle of Solace Church.\n\nVisit the church website to access it.",
+    links: [{label:"Open church website", url:C.website}, {label:"TSC Radio", url:C.radioLink, alt:true}],
+    chips: ["TSC Radio","Daily devotional","Morning Altar"]
+  }),
+
+  contact: () => ({
+    text: `Reach the church through these official channels.\n\nWhatsApp: ${C.whatsappDisplay}\nEmail: ${C.email}`,
+    links: [toWA("Open WhatsApp", `Hello ${C.church}`), {label:"Church website", url:C.website, alt:true}, {label:"Apostle's website", url:C.apostleSite, alt:true}],
+    chips: ["Prayer request","Become a member","Invite the Apostle"]
+  }),
+
+  thanks: () => ({ text: "You are welcome. God bless you. Is there anything else I can help with?" }),
+
+  fallback: () => ({
+    text: "I am not sure I have that information. Please pick a topic below, or send your question to the church team on WhatsApp.",
+    links: [toWA("Ask on WhatsApp","Hello, I have a question: "), {label:"Church website", url:C.website, alt:true}]
+  })
+};
+
+const INTENTS = [
+  ["greet",     ["hi","hello","hey","good morning","good afternoon","good evening","shalom","greetings","welcome"], 0.5],
+  ["morning",   ["morning altar","altar","broadcast","5 30","morning broadcast","morning prayer","daily broadcast"], 1.3],
+  ["mercy",     ["mercy encounter","mercy","encounter","second sunday","monthly","monthly programme","monthly program"], 1.3],
+  ["services",  ["service","services","time","times","when","address","location","where","venue","directions","sunday","programme","programmes","program","programs","gathering","hold","come","worship","hall","ibadan","map"]],
+  ["visitor",   ["first time","first timer","new here","visitor","visitors","visiting","visit","newcomer"], 1.2],
+  ["member",    ["member","membership","join","become a member","register","registration","belong"], 1.3],
+  ["invite",    ["invite","invitation","conference","conferences","seminar","seminars","convention","conventions","guest minister","speaker","preach at","book the apostle"], 1.4],
+  ["counsel",   ["counsel","counselling","counseling","guidance","advice","spiritual guidance","mentor"], 1.2],
+  ["vision",    ["vision","mission","purpose","mandate","core values","what we believe","beliefs"]],
+  ["about",     ["about","tsc","tabernacle","solace","church","history","who are you","what is tsc","holy spirit"]],
+  ["pastor",    ["apostle","pastor","oluwaseun","israel","senior pastor","founder","leader","man of god","who is the pastor"]],
+  ["teachings", ["teaching","teachings","teach","doctrine","preach","topics","prophetic","deliverance","discipleship"]],
+  ["giving",    ["give","giving","offering","offerings","tithe","tithes","seed","donate","donation","account","gtb","bank","transfer","pay","support"]],
+  ["buy",       ["buy","purchase","order","selar","price","cost","how to buy","get book","get the book"]],
+  ["books",     ["book","books","author","titles","publication","publications","read"]],
+  ["devotional",["devotional","devotion","bible reading","daily devotional","word for today","quiet time"]],
+  ["radio",     ["radio","tsc radio","listen","station","stream","live","online radio"]],
+  ["audio",     ["audio","audio library","mp3","sermon","sermons","recorded messages","recordings"]],
+  ["contact",   ["contact","whatsapp","phone","call","number","reach","email","chat","speak","website","site","link"]],
+  ["thanks",    ["thanks","thank","thank you","bless","amen","god bless"], 0.5]
+];
+
+/* ---------- prayer request flow ---------- */
+let flow = null;
+function startPrayer(){
+  flow = { step: "name", data: {} };
+  return say({ text: "I am sorry for what you may be facing, and I am glad you reached out. Prayer at TSC is absolutely free.\n\nI can prepare your request for the church. It only reaches the church when you press send in WhatsApp.\n\nWhat is your name? You may write \"anonymous\" if you prefer.", chips: ["Anonymous","Cancel"] });
+}
+async function prayerStep(t){
+  if (/^cancel$/i.test(t)){ flow = null; return say({ text: "No problem. You can ask for prayer any time." }); }
+  if (flow.step === "name"){
+    flow.data.name = /anonym/i.test(t) ? "Anonymous" : t;
+    flow.step = "need";
+    return say({ text: `Thank you${flow.data.name === "Anonymous" ? "" : ", " + flow.data.name}. What would you like prayer for?`, chips: ["Healing","Family","Finances","Direction","Cancel"] });
+  }
+  if (flow.step === "need"){
+    flow.data.need = t;
+    const d = flow.data; flow = null;
+    const msg = `PRAYER REQUEST\nName: ${d.name}\nRequest: ${d.need}`;
+    return say({
+      text: "Your request is ready. Tap the button to open WhatsApp with it already written, then press send to reach the church.\n\nMay the Lord meet you at the point of your need.",
+      links: [toWA("Open WhatsApp to send", msg)],
+      chips: ["Morning Altar","Daily devotional","Mercy Encounter"]
+    });
+  }
+}
+
+/* ---------- router ---------- */
+async function handle(raw){
+  const t = raw.trim(); if (!t) return;
+  user(t); box.value = "";
+  if (flow) return prayerStep(t);
+  const text = norm(t), words = text.split(" ");
+
+  if (/(charge|free|cost|pay|price|fee).*(prayer|pray)|(prayer|pray).*(free|charge|cost|pay|fee)/.test(text)) return say(A.freeprayer());
+  if (/\b(pray|prayer|prayers|intercession)\b/.test(text) && !/devotional|morning/.test(text)) return startPrayer();
+  if (/how to buy|buy book|order book|buy the book/.test(text)) return say(A.buy());
+  if (/his teachings|teachings of/.test(text)) return say(A.teachings());
+  if (/first time|first timer|new here/.test(text)) return say(A.visitor());
+  if (/about tsc|about the church/.test(text)) return say(A.about());
+
+  for (const b of BOOKS){
+    if (b.m.some(p => text.includes(p)) && (!b.needBook || /book|selar|read|buy/.test(text))) return say(A.book(b));
+  }
+
+  let best = null, top = 0;
+  for (const [name, kws, w = 1] of INTENTS){
+    const s = scoreIntent(text, words, kws) * w;
+    if (s > top){ top = s; best = name; }
+  }
+  if (best && (top >= 1.5 || (best === "greet" && top >= 1))) return say(A[best]());
+
+  if (C.aiEndpoint){
+    try{
+      const r = await fetch(C.aiEndpoint, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ message: t }) });
+      const j = await r.json();
+      if (j.reply) return say({ text: j.reply, chips: MAIN_CHIPS });
+    }catch(e){ /* fall through */ }
+  }
+  return say(A.fallback());
+}
+
+$("#form").addEventListener("submit", e => { e.preventDefault(); handle(box.value); });
+say(A.greet(), 300);
+</script>
+</body>
+</html>
