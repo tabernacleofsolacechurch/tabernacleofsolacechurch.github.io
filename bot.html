@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14303b">
+<title>TSC Assistant | Tabernacle of Solace Church</title>
+<style>
+:root{
+  --bg:#e9eff1; --panel:#ffffff; --ink:#14262e; --muted:#5d727b;
+  --brand:#14303b; --brand-ink:#f4f1e8; --gold:#b8862f; --gold-soft:#f3e7cc;
+  --user:#14303b; --user-ink:#f4f1e8; --line:#d3dde1;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#0c1a20; --panel:#15262e; --ink:#e8eef0; --muted:#97aab2;
+    --brand:#0f232b; --brand-ink:#f4f1e8; --gold:#d6a850; --gold-soft:#2c2a1f;
+    --user:#d6a850; --user-ink:#1a1608; --line:#27404a;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--ink);
+  font-family:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.5;display:flex;justify-content:center;
+}
+.app{width:100%;max-width:640px;height:100dvh;display:flex;flex-direction:column;background:var(--bg)}
+header{
+  background:var(--brand);color:var(--brand-ink);
+  padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+  display:flex;align-items:center;gap:12px;border-bottom:3px solid var(--gold);
+}
+.crest{
+  width:42px;height:42px;border-radius:50%;flex:none;
+  background:var(--gold);color:#14262e;display:grid;place-items:center;
+  font-family:Georgia,"Times New Roman",serif;font-weight:700;font-size:15px;letter-spacing:.5px;
+}
+.title{font-family:Georgia,"Times New Roman",serif;font-size:18px;line-height:1.2}
+.sub{font-size:12.5px;opacity:.8}
+.head-wa{
+  margin-left:auto;color:var(--brand-ink);text-decoration:none;font-size:13px;
+  border:1px solid rgba(244,241,232,.45);padding:7px 12px;border-radius:999px;white-space:nowrap;
+}
+.head-wa:focus-visible,.chip:focus-visible,.btn:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+#log{flex:1;overflow-y:auto;padding:16px 14px 8px;display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth}
+.msg{max-width:88%;padding:11px 14px;border-radius:18px;word-wrap:break-word;font-size:15.5px}
+.msg.bot{background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px;align-self:flex-start}
+.msg.me{background:var(--user);color:var(--user-ink);border-bottom-right-radius:5px;align-self:flex-end}
+.msg p+p{margin-top:8px}
+.msg strong{font-family:Georgia,"Times New Roman",serif;font-weight:700}
+.msg ul{margin:6px 0 2px 18px}
+.msg li{margin:2px 0}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.btn{
+  display:inline-block;text-decoration:none;font-size:14px;font-weight:600;font-family:inherit;
+  background:var(--gold);color:#1a1608;padding:9px 14px;border-radius:10px;border:0;cursor:pointer;
+}
+.btn.alt{background:var(--gold-soft);color:var(--ink);border:1px solid var(--gold)}
+.typing{display:flex;gap:5px;padding:14px 16px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:b 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+@media (prefers-reduced-motion:reduce){.typing i{animation:none;opacity:.7}#log{scroll-behavior:auto}}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:8px 14px;scrollbar-width:none;border-top:1px solid var(--line);background:var(--bg)}
+.chips::-webkit-scrollbar{display:none}
+.chip{
+  flex:none;border:1px solid var(--gold);background:var(--panel);color:var(--ink);
+  padding:8px 14px;border-radius:999px;font-size:14px;cursor:pointer;font-family:inherit;
+}
+.chip:active{background:var(--gold-soft)}
+form{display:flex;gap:8px;padding:8px 14px calc(12px + env(safe-area-inset-bottom));background:var(--bg)}
+input{
+  flex:1;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:999px;padding:12px 16px;font-size:16px;font-family:inherit;min-width:0;
+}
+form button{
+  border:0;background:var(--brand);color:var(--brand-ink);border-radius:999px;
+  padding:0 20px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;
+}
+@media (prefers-color-scheme: dark){form button{background:var(--gold);color:#1a1608}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="crest" aria-hidden="true">TSC</div>
+    <div>
+      <div class="title">Tabernacle of Solace</div>
+      <div class="sub">Church assistant</div>
+    </div>
+    <a class="head-wa" id="headWa" href="#" target="_blank" rel="noopener">WhatsApp us</a>
+  </header>
+  <main id="log" aria-live="polite" aria-label="Conversation"></main>
+  <div class="chips" id="chips" aria-label="Suggested questions"></div>
+  <form id="form" autocomplete="off">
+    <input id="box" type="text" placeholder="Type your question" aria-label="Type your question" enterkeyhint="send">
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<script>
+/* ============================================================
+   CHURCH DETAILS. Edit only this block to update the bot.
+   ============================================================ */
+const C = {
+  church: "Tabernacle of Solace Church",
+  short: "TSC",
+  whatsapp: "2348147560000",
+  whatsappDisplay: "+234 814 756 0000",
+  email: "tabernacleofsolacechurch@gmail.com",
+  website: "https://tabernacleofsolacechurch.github.io/",
+  apostleSite: "https://apostleoluwaseunisrael.com",
+  radioLink: "https://tabernacleofsolacechurch.github.io/radio.html",
+  devotionalBase: "https://tabernacleofsolacechurch.github.io/devotional.html",
+  venue: "Dominion Hall, No 76, MKO Abiola Way, behind Henrytee Motors, Ring Road, Ibadan",
+  mapLink: "https://www.google.com/maps/search/?api=1&query=Dominion+Hall+76+MKO+Abiola+Way+Ring+Road+Ibadan",
+  bank: { number: "0132038855", name: "OLUWASEUN SAMUEL ISRAEL", bank: "Guaranty Trust Bank (GTB)" },
+  vision: "To be a tabernacle of solace for the nations: a place where the broken find comfort, the bound find freedom, and the weary find rest.",
+  mission: "To restore broken souls and renew faith in Jesus Christ through the clear preaching of the Word, prophetic ministry, deliverance and loving discipleship.",
+  /* Optional: URL of an AI backend to answer questions the bot cannot match. Leave empty to stay free and offline. */
+  aiEndpoint: ""
+};
+
+const BOOKS = [
+  { t:"The Door Is Not Locked", u:"https://selar.com/k417w02q4q", m:["door is not locked","door not locked"], d:"A practical, honest guide for anyone who feels stuck, showing how to rise again and walk into the life you were created for." },
+  { t:"Kissed by Judas Built by God", u:"https://selar.com/6o37w6m9xl", m:["judas","kissed by judas"], d:"Healing from betrayal, and how God uses painful seasons to build strength, character and purpose." },
+  { t:"Where Is the Church", u:"https://selar.com/260d87809d", m:["where is the church"], needBook:true, d:"A prophetic call to the Church to return to holiness, prayer, power and genuine intimacy with Christ." },
+  { t:"Discharged and Acquitted", u:"https://selar.com/9hj741k757", m:["discharged","acquitted"], d:"Freedom from guilt, condemnation and unforgiveness through the verdict Heaven has already declared over your life." },
+  { t:"Secrets That Destroy", u:"https://selar.com/766771824h", m:["secrets that destroy"], d:"Bringing hidden things into the light, so that restoration can begin and nothing remains buried." },
+  { t:"The Power of Financial Wisdom", u:"https://selar.com/5103707y16", m:["financial wisdom"], d:"Kingdom principles for moving from financial survival to financial authority." },
+  { t:"Breaking Free From Addiction", u:"https://selar.com/6y7u1h1t04", m:["addiction"], d:"Confronting the habits and patterns that steal your freedom, and rebuilding discipline and self control." },
+  { t:"Youth and Burning", u:"https://selar.com/7h3169c879", m:["youth and burning","young and burning"], d:"A prophetic call to young believers to live with fire, purity and purpose." },
+  { t:"Clothed With Dominion", u:"https://selar.com/3b1133393x", m:["clothed with dominion","clothed with"], d:"Eighteen chapters on the kingdom authority that is already yours in Christ." },
+  { t:"The Cost of the Cross", u:"https://selar.com/k715g511hd", m:["cost of the cross"], d:"The true cost of discipleship and following Jesus as Lord, not only as Saviour." },
+  { t:"Understanding the Prophetic", u:"https://selar.com/78g1533174", m:["understanding the prophetic"], d:"Clear, balanced and biblical teaching on the prophetic, and how to discern genuine voices." }
+];
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const log = $("#log"), chipsEl = $("#chips"), box = $("#box");
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const wa = t => `https://wa.me/${C.whatsapp}${t ? "?text=" + encodeURIComponent(t) : ""}`;
+const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
+$("#headWa").href = wa(`Hello ${C.church}`);
+
+const MAIN_CHIPS = ["Morning Altar","Mercy Encounter","Prayer request","Become a member","Giving","About Apostle Oluwaseun","Books","TSC Radio","Daily devotional","Invite the Apostle","Contact"];
+
+function norm(s){ return s.toLowerCase().replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim(); }
+function lev(a,b){
+  if (Math.abs(a.length-b.length) > 1) return 2;
+  const m = Array.from({length:a.length+1},(_,i)=>[i]);
+  for (let j=1;j<=b.length;j++) m[0][j]=j;
+  for (let i=1;i<=a.length;i++) for (let j=1;j<=b.length;j++)
+    m[i][j] = Math.min(m[i-1][j]+1, m[i][j-1]+1, m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+  return m[a.length][b.length];
+}
+function scoreIntent(text, words, kws){
+  let s = 0;
+  for (const k of kws){
+    if (k.includes(" ")) { if (text.includes(k)) s += 3; continue; }
+    for (const w of words){
+      if (w === k) s += 2;
+      else if (k.length >= 5 && w.length >= 5 && lev(w,k) <= 1) s += 1.5;
+    }
+  }
+  return s;
+}
+
+function render(o){
+  const d = document.createElement("div");
+  d.className = "msg bot";
+  let h = "";
+  (o.text || "").split("\n\n").forEach(p => {
+    const lines = p.split("\n");
+    if (lines.every(l => l.startsWith("- "))) h += "<ul>" + lines.map(l => `<li>${esc(l.slice(2))}</li>`).join("") + "</ul>";
+    else h += "<p>" + esc(p).replace(/\n/g,"<br>").replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>") + "</p>";
+  });
+  if (o.links && o.links.length){
+    h += '<div class="actions">' + o.links.map(l => l.copy
+      ? `<button type="button" class="btn alt" data-copy="${esc(l.copy)}">${esc(l.label)}</button>`
+      : `<a class="btn${l.alt?" alt":""}" href="${l.url}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join("") + "</div>";
+  }
+  d.innerHTML = h;
+  return d;
+}
+function setChips(list){
+  chipsEl.innerHTML = "";
+  (list || MAIN_CHIPS).forEach(t => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = t;
+    b.onclick = () => handle(t);
+    chipsEl.appendChild(b);
+  });
+  chipsEl.scrollLeft = 0;
+}
+function scrollDown(){ log.scrollTop = log.scrollHeight; }
+function user(t){
+  const d = document.createElement("div"); d.className = "msg me"; d.textContent = t;
+  log.appendChild(d); scrollDown();
+}
+function say(o, delay = 450){
+  return new Promise(res => {
+    const t = document.createElement("div");
+    t.className = "msg bot typing"; t.innerHTML = "<i></i><i></i><i></i>";
+    log.appendChild(t); scrollDown();
+    setTimeout(() => {
+      t.remove();
+      log.appendChild(render(o));
+      setChips(o.chips);
+      scrollDown(); res();
+    }, delay);
+  });
+}
+log.addEventListener("click", e => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  const v = b.getAttribute("data-copy"), old = b.textContent;
+  const done = () => { b.textContent = "Copied"; setTimeout(() => b.textContent = old, 1800); };
+  if (navigator.clipboard) navigator.clipboard.writeText(v).then(done, done); else done();
+});
+
+const toWA = (label, msg) => ({ label, url: wa(msg) });
+
+/* ---------- answers ---------- */
+const A = {
+  greet: () => ({ text:`Welcome to ${C.church}. I am the TSC assistant.\n\nAsk me about Morning Altar, Mercy Encounter, prayer, membership, giving, Apostle Oluwaseun Israel, his books, the daily devotional and TSC Radio.` }),
+
+  morning: () => ({
+    text: "**MORNING ALTAR**\n\nApostle Oluwaseun Israel leads Morning Altar live every day at 5:30 AM on TSC Online Radio, the official radio of Tabernacle of Solace Church.\n\nTune in and start your day at the altar.",
+    links: [{label:"Listen on TSC Radio", url:C.radioLink}],
+    chips: ["Mercy Encounter","Prayer request","Daily devotional","Become a member"]
+  }),
+
+  mercy: () => ({
+    text: `**MERCY ENCOUNTER**\n\nEvery second Sunday of the month\nTime: 3:00 PM\nVenue: ${C.venue}\n\nVisitors are welcome. For any change or update, please confirm on WhatsApp.`,
+    links: [{label:"Open in Maps", url:C.mapLink}, {...toWA("Confirm on WhatsApp","Hello, I would like to attend Mercy Encounter. Please confirm the next date."), alt:true}],
+    chips: ["Morning Altar","First time visitor","Become a member","Contact"]
+  }),
+
+  services: () => ({
+    text: `**Programmes at TSC**\n\n- Morning Altar: every day, 5:30 AM, live on TSC Online Radio\n- Mercy Encounter: every second Sunday of the month, 3:00 PM\n\nMercy Encounter venue: ${C.venue}.\n\nFor anything else, please confirm on WhatsApp.`,
+    links: [{label:"Open in Maps", url:C.mapLink}, {label:"TSC Radio", url:C.radioLink, alt:true}],
+    chips: ["Morning Altar","Mercy Encounter","First time visitor","Contact"]
+  }),
+
+  visitor: () => ({
+    text: `You are most welcome. First time visitors are warmly received at ${C.church}.\n\nTSC holds Mercy Encounter on every second Sunday of the month at 3:00 PM at ${C.venue}. You can also join Morning Altar every day at 5:30 AM on TSC Online Radio.\n\nFor anything else, our team will gladly help on WhatsApp.`,
+    links: [{label:"Open in Maps", url:C.mapLink}, {...toWA("Message the church","Hello, I am a first time visitor and I would like to know more about Tabernacle of Solace Church."), alt:true}],
+    chips: ["Mercy Encounter","Morning Altar","Become a member","Prayer request"]
+  }),
+
+  member: () => ({
+    text: `We would be glad to have you as part of ${C.church}.\n\nTo become a member, contact the church team. They will guide you personally and answer your questions about joining.\n\nYou can message us on WhatsApp (${C.whatsappDisplay}) or email ${C.email}.`,
+    links: [{...toWA("Ask about membership","Hello, I would like to become a member of Tabernacle of Solace Church. Please guide me.")}, {label:"Visit church website", url:C.website, alt:true}],
+    chips: ["Mercy Encounter","First time visitor","Prayer request","Contact"]
+  }),
+
+  about: () => ({
+    text: `${C.church} (${C.short}) is a Christian ministry committed to restoring broken souls and renewing faith in Jesus Christ.\n\nWe believe in the Holy Spirit. We give room for people to grow and we encourage them in their walk with God, in an atmosphere where they can encounter Jesus Christ, experience restoration and discover purpose.\n\nThe Founder and Senior Pastor is Apostle Oluwaseun Israel.`,
+    links: [{label:"Church website", url:C.website, alt:true}],
+    chips: ["Vision and mission","About Apostle Oluwaseun","Mercy Encounter","Become a member"]
+  }),
+
+  vision: () => ({
+    text: `**Vision**\n${C.vision}\n\n**Mission**\n${C.mission}`,
+    chips: ["About TSC","About Apostle Oluwaseun","Mercy Encounter","Prayer request"]
+  }),
+
+  pastor: () => ({
+    text: "**Apostle Oluwaseun Israel** is the Founder and Senior Pastor of Tabernacle of Solace Church.\n\nHe is a Christian minister committed to preaching the Gospel of Jesus Christ, teaching the Word of God, spiritual restoration, prophetic ministry, deliverance and the transformation of lives.\n\nHis ministry vision is centred on restoring broken souls, renewing faith in Jesus Christ and helping people discover their identity, freedom and purpose through the Word of God.",
+    links: [{label:"His personal website", url:C.apostleSite}],
+    chips: ["His teachings","Books","Invite the Apostle","Morning Altar"]
+  }),
+
+  teachings: () => ({
+    text: "The ministry of Apostle Oluwaseun Israel is centred on:\n\n- The Gospel of Jesus Christ\n- Teaching the Word of God\n- Spiritual restoration\n- Prophetic ministry\n- Deliverance\n- The transformation of lives\n\nYou can receive his teachings through Morning Altar, TSC Online Radio, the Audio Library, the daily devotional and his books.",
+    links: [{label:"TSC Radio", url:C.radioLink}, {label:"His website", url:C.apostleSite, alt:true}],
+    chips: ["Books","Audio library","Daily devotional","Morning Altar"]
+  }),
+
+  invite: () => ({
+    text: "To invite Apostle Oluwaseun Israel to your conference, seminar, church programme or convention, send your invitation to the official TSC WhatsApp line or by email.\n\nPlease include:\n\n- Name of your church or organisation\n- Type of programme\n- Date and time\n- Venue and city\n- Your name and phone number\n\nThe church team will review your invitation and respond to you.",
+    links: [
+      toWA("Send invitation on WhatsApp", "Hello, I would like to invite Apostle Oluwaseun Israel.\n\nChurch or organisation:\nProgramme type (conference, seminar, church programme, convention):\nDate and time:\nVenue and city:\nMy name and phone number:"),
+      {label:"Email invitation", url:`mailto:${C.email}?subject=${encodeURIComponent("Invitation for Apostle Oluwaseun Israel")}`, alt:true}
+    ],
+    chips: ["About Apostle Oluwaseun","Contact","Books"]
+  }),
+
+  freeprayer: () => ({
+    text: "Prayer at TSC and with Apostle Oluwaseun Israel is absolutely free. No one charges for prayer, and you should never be asked to pay for it.\n\nIf you would like prayer, I can help you prepare your request.",
+    chips: ["Prayer request","Morning Altar","Contact"]
+  }),
+
+  counsel: () => ({
+    text: "If you need spiritual guidance or counselling, you are welcome to reach out to the church team. You will be treated with respect, care and wisdom.\n\nMessage the official TSC WhatsApp line to begin.",
+    links: [toWA("Ask for guidance","Hello, I would like spiritual guidance. Please advise me on how to proceed.")],
+    chips: ["Prayer request","Mercy Encounter","Contact"]
+  }),
+
+  giving: () => ({
+    text: `Thank you for your heart to give. Your giving supports the work of the Gospel at TSC.\n\nAccount number: ${C.bank.number}\nAccount name: ${C.bank.name}\nBank: ${C.bank.bank}\n\nPrayer is always free. Giving is a voluntary act of love and is never a condition for prayer.`,
+    links: [{label:"Copy account number", copy:C.bank.number}, {...toWA("Confirm giving on WhatsApp","Hello, I just gave to Tabernacle of Solace Church."), alt:true}],
+    chips: ["Prayer request","Become a member","Contact"]
+  }),
+
+  books: () => ({
+    text: "Books by Apostle Oluwaseun Israel are available on Selar as digital downloads you can read on your phone.\n\nTap a title to open it, or type a book name to read about it.",
+    links: BOOKS.map(b => ({label:b.t, url:b.u, alt:true})),
+    chips: ["How to buy books","About Apostle Oluwaseun","Daily devotional","Contact"]
+  }),
+  book: b => ({
+    text: `**${b.t}**\nby Apostle Oluwaseun Israel\n\n${b.d}`,
+    links: [{label:"Get it on Selar", url:b.u}],
+    chips: ["Books","How to buy books","Contact"]
+  }),
+  buy: () => ({
+    text: "To buy a book, open its page on Selar, tap Buy now and complete payment. The book is a digital download.\n\nTap a title below. If you need help with an order, message us on WhatsApp.",
+    links: [...BOOKS.map(b => ({label:b.t, url:b.u, alt:true})), toWA("Order help on WhatsApp","Hello, I need help buying a book by Apostle Oluwaseun Israel.")],
+    chips: ["Books","Contact"]
+  }),
+
+  devotional: () => ({
+    text: "The TSC daily devotional and Bible reading on the official church website help you grow in the Word and keep consistent fellowship with God.",
+    links: [{label:"Read today's devotional", url:`${C.devotionalBase}?date=${today()}`}, {label:"Church website", url:C.website, alt:true}],
+    chips: ["Morning Altar","TSC Radio","Books"]
+  }),
+
+  radio: () => ({
+    text: "TSC Online Radio is the official broadcasting radio of Tabernacle of Solace Church. It carries spiritual teachings, messages and ministry broadcasts.\n\nApostle Oluwaseun Israel leads Morning Altar live on it every day at 5:30 AM.",
+    links: [{label:"Listen on TSC Radio", url:C.radioLink}],
+    chips: ["Morning Altar","Audio library","Daily devotional"]
+  }),
+
+  audio: () => ({
+    text: "The TSC Audio Library lets you listen to and download available audio messages and teachings. It is an official digital resource of Tabernacle of Solace Church.\n\nVisit the church website to access it.",
+    links: [{label:"Open church website", url:C.website}, {label:"TSC Radio", url:C.radioLink, alt:true}],
+    chips: ["TSC Radio","Daily devotional","Morning Altar"]
+  }),
+
+  contact: () => ({
+    text: `Reach the church through these official channels.\n\nWhatsApp: ${C.whatsappDisplay}\nEmail: ${C.email}`,
+    links: [toWA("Open WhatsApp", `Hello ${C.church}`), {label:"Church website", url:C.website, alt:true}, {label:"Apostle's website", url:C.apostleSite, alt:true}],
+    chips: ["Prayer request","Become a member","Invite the Apostle"]
+  }),
+
+  thanks: () => ({ text: "You are welcome. God bless you. Is there anything else I can help with?" }),
+
+  fallback: () => ({
+    text: "I am not sure I have that information. Please pick a topic below, or send your question to the church team on WhatsApp.",
+    links: [toWA("Ask on WhatsApp","Hello, I have a question: "), {label:"Church website", url:C.website, alt:true}]
+  })
+};
+
+const INTENTS = [
+  ["greet",     ["hi","hello","hey","good morning","good afternoon","good evening","shalom","greetings","welcome"], 0.5],
+  ["morning",   ["morning altar","altar","broadcast","5 30","morning broadcast","morning prayer","daily broadcast"], 1.3],
+  ["mercy",     ["mercy encounter","mercy","encounter","second sunday","monthly","monthly programme","monthly program"], 1.3],
+  ["services",  ["service","services","time","times","when","address","location","where","venue","directions","sunday","programme","programmes","program","programs","gathering","hold","come","worship","hall","ibadan","map"]],
+  ["visitor",   ["first time","first timer","new here","visitor","visitors","visiting","visit","newcomer"], 1.2],
+  ["member",    ["member","membership","join","become a member","register","registration","belong"], 1.3],
+  ["invite",    ["invite","invitation","conference","conferences","seminar","seminars","convention","conventions","guest minister","speaker","preach at","book the apostle"], 1.4],
+  ["counsel",   ["counsel","counselling","counseling","guidance","advice","spiritual guidance","mentor"], 1.2],
+  ["vision",    ["vision","mission","purpose","mandate","core values","what we believe","beliefs"]],
+  ["about",     ["about","tsc","tabernacle","solace","church","history","who are you","what is tsc","holy spirit"]],
+  ["pastor",    ["apostle","pastor","oluwaseun","israel","senior pastor","founder","leader","man of god","who is the pastor"]],
+  ["teachings", ["teaching","teachings","teach","doctrine","preach","topics","prophetic","deliverance","discipleship"]],
+  ["giving",    ["give","giving","offering","offerings","tithe","tithes","seed","donate","donation","account","gtb","bank","transfer","pay","support"]],
+  ["buy",       ["buy","purchase","order","selar","price","cost","how to buy","get book","get the book"]],
+  ["books",     ["book","books","author","titles","publication","publications","read"]],
+  ["devotional",["devotional","devotion","bible reading","daily devotional","word for today","quiet time"]],
+  ["radio",     ["radio","tsc radio","listen","station","stream","live","online radio"]],
+  ["audio",     ["audio","audio library","mp3","sermon","sermons","recorded messages","recordings"]],
+  ["contact",   ["contact","whatsapp","phone","call","number","reach","email","chat","speak","website","site","link"]],
+  ["thanks",    ["thanks","thank","thank you","bless","amen","god bless"], 0.5]
+];
+
+/* ---------- prayer request flow ---------- */
+let flow = null;
+function startPrayer(){
+  flow = { step: "name", data: {} };
+  return say({ text: "I am sorry for what you may be facing, and I am glad you reached out. Prayer at TSC is absolutely free.\n\nI can prepare your request for the church. It only reaches the church when you press send in WhatsApp.\n\nWhat is your name? You may write \"anonymous\" if you prefer.", chips: ["Anonymous","Cancel"] });
+}
+async function prayerStep(t){
+  if (/^cancel$/i.test(t)){ flow = null; return say({ text: "No problem. You can ask for prayer any time." }); }
+  if (flow.step === "name"){
+    flow.data.name = /anonym/i.test(t) ? "Anonymous" : t;
+    flow.step = "need";
+    return say({ text: `Thank you${flow.data.name === "Anonymous" ? "" : ", " + flow.data.name}. What would you like prayer for?`, chips: ["Healing","Family","Finances","Direction","Cancel"] });
+  }
+  if (flow.step === "need"){
+    flow.data.need = t;
+    const d = flow.data; flow = null;
+    const msg = `PRAYER REQUEST\nName: ${d.name}\nRequest: ${d.need}`;
+    return say({
+      text: "Your request is ready. Tap the button to open WhatsApp with it already written, then press send to reach the church.\n\nMay the Lord meet you at the point of your need.",
+      links: [toWA("Open WhatsApp to send", msg)],
+      chips: ["Morning Altar","Daily devotional","Mercy Encounter"]
+    });
+  }
+}
+
+/* ---------- router ---------- */
+async function handle(raw){
+  const t = raw.trim(); if (!t) return;
+  user(t); box.value = "";
+  if (flow) return prayerStep(t);
+  const text = norm(t), words = text.split(" ");
+
+  if (/(charge|free|cost|pay|price|fee).*(prayer|pray)|(prayer|pray).*(free|charge|cost|pay|fee)/.test(text)) return say(A.freeprayer());
+  if (/\b(pray|prayer|prayers|intercession)\b/.test(text) && !/devotional|morning/.test(text)) return startPrayer();
+  if (/how to buy|buy book|order book|buy the book/.test(text)) return say(A.buy());
+  if (/his teachings|teachings of/.test(text)) return say(A.teachings());
+  if (/first time|first timer|new here/.test(text)) return say(A.visitor());
+  if (/about tsc|about the church/.test(text)) return say(A.about());
+
+  for (const b of BOOKS){
+    if (b.m.some(p => text.includes(p)) && (!b.needBook || /book|selar|read|buy/.test(text))) return say(A.book(b));
+  }
+
+  let best = null, top = 0;
+  for (const [name, kws, w = 1] of INTENTS){
+    const s = scoreIntent(text, words, kws) * w;
+    if (s > top){ top = s; best = name; }
+  }
+  if (best && (top >= 1.5 || (best === "greet" && top >= 1))) return say(A[best]());
+
+  if (C.aiEndpoint){
+    try{
+      const r = await fetch(C.aiEndpoint, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ message: t }) });
+      const j = await r.json();
+      if (j.reply) return say({ text: j.reply, chips: MAIN_CHIPS });
+    }catch(e){ /* fall through */ }
+  }
+  return say(A.fallback());
+}
+
+$("#form").addEventListener("submit", e => { e.preventDefault(); handle(box.value); });
+say(A.greet(), 300);
+</script>
+</body>
+</html>
