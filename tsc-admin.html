@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1B2A4A">
+<title>TSC Administration</title>
+<link rel="icon" href="tsc-logo.webp">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#1B2A4A;--gold:#D4AF37;--bg:#F7F9FA;--panel:#fff;--ink:#1B2A4A;--muted:#5a6783;--line:#dde3ec;--soft:#f1ead2;--bad:#9b1c1c;--good:#17663a}
+@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0e1626;--panel:#16233a;--ink:#eef2f8;--muted:#a3b0c7;--line:#27385a;--soft:#2b2a1d;--bad:#ffb4b4;--good:#7ee0a5}}
+*{box-sizing:border-box;margin:0;padding:0}[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:Figtree,-apple-system,"Segoe UI",Arial,sans-serif;font-size:15.5px;line-height:1.5}
+h1,h2,h3{font-family:"Cormorant Garamond",Georgia,serif;line-height:1.15}
+button,input,select,textarea{font:inherit;color:inherit}button{cursor:pointer}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+header{background:var(--navy);color:#fff;border-bottom:3px solid var(--gold);padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+header img{width:38px;height:38px;border-radius:9px;background:#fff;padding:2px;object-fit:contain}
+header b{font-family:"Cormorant Garamond",serif;font-size:20px;letter-spacing:.4px}
+header small{display:block;opacity:.8;font-size:12px}
+header .sp{flex:1}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:64px;z-index:9;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav button{flex:none;border:1px solid var(--line);background:transparent;border-radius:999px;padding:8px 14px;font-weight:500;color:var(--muted)}
+nav button[aria-current=page]{background:var(--navy);border-color:var(--navy);color:#fff}
+@media(prefers-color-scheme:dark){nav button[aria-current=page]{background:var(--gold);border-color:var(--gold);color:var(--navy)}}
+main{max-width:1000px;margin:0 auto;padding:16px 12px 60px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.login{max-width:400px;margin:8vh auto;border-top:4px solid var(--gold)}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+.stat b{font-family:"Cormorant Garamond",serif;font-size:30px;display:block;line-height:1}
+.stat span{color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:10px;background:var(--gold);color:var(--navy);font-weight:600;padding:9px 14px;min-height:40px;text-decoration:none}
+.btn.alt{background:transparent;border:1px solid var(--gold);color:var(--ink)}
+.btn.danger{background:transparent;border:1px solid var(--bad);color:var(--bad)}
+.btn.sm{min-height:34px;padding:5px 10px;font-size:14px}
+.btn[disabled]{opacity:.5}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.bar input,.bar select{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 11px;min-height:40px}
+.bar input{flex:1;min-width:140px}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 12px;margin-bottom:8px;width:100%;text-align:left}
+button.row:hover{border-color:var(--gold)}
+.row .t{min-width:0;flex:1}.row .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row small{color:var(--muted)}
+.pill{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600;background:var(--soft);border:1px solid var(--gold);white-space:nowrap}
+.pill.ok{border-color:var(--good);color:var(--good);background:transparent}.pill.bad{border-color:var(--bad);color:var(--bad);background:transparent}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:600}
+.scroll{overflow-x:auto}
+.field{margin-bottom:12px}.field label{display:block;font-weight:600;font-size:14px;margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:10px 12px;min-height:44px}
+.field textarea{min-height:110px}.field .h{font-size:12.5px;color:var(--muted);margin-top:3px}
+.check{display:flex;gap:10px;align-items:center;margin-bottom:12px}.check input{width:22px;height:22px;accent-color:var(--gold)}
+.modal{position:fixed;inset:0;background:rgba(14,22,38,.6);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+.modal .box{background:var(--bg);width:100%;max-width:720px;max-height:94vh;overflow:auto;border-radius:20px 20px 0 0;border-top:4px solid var(--gold);padding:16px}
+@media(min-width:760px){.modal{align-items:center}.modal .box{border-radius:20px}}
+.msg{padding:10px 12px;border-radius:10px;margin-bottom:10px;font-size:14px}.msg.bad{background:#fdecec;color:#7a1414;border:1px solid #f3c1c1}.msg.ok{background:var(--soft);border:1px solid var(--gold)}
+@media(prefers-color-scheme:dark){.msg.bad{background:#3b1c1c;color:#ffd9d9;border-color:#5b2a2a}}
+.muted{color:var(--muted)}.pre{white-space:pre-wrap;word-break:break-word;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.cover{width:56px;height:74px;object-fit:cover;border-radius:6px;background:var(--soft);flex:none}
+h2{font-size:26px;margin-bottom:10px}h3{font-size:21px;margin:14px 0 8px}
+</style>
+</head>
+<body>
+<header><img src="tsc-logo.webp" alt="" onerror="this.remove()"><div><b>TSC Administration</b><small id="who">Sign in required</small></div><span class="sp"></span><button class="btn alt sm" id="out" hidden>Sign out</button></header>
+<nav id="nav" hidden></nav>
+<main id="main"></main>
+<script src="bot-config.js"></script>
+<script>
+"use strict";
+const CFG = window.TSC_CONFIG || {}, BASE = (CFG.supabaseUrl || "").replace(/\/$/, ""), KEY = CFG.supabaseKey || "";
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtD = s => s ? new Date(s).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+const ROLES = { super_admin: "Super admin", knowledge_manager: "Knowledge manager", prayer_team: "Prayer team", follow_up_team: "Follow-up team", administrator: "Administrator" };
+let sess = null, me = null, current = "overview";
+
+/* ---------- auth (Supabase Auth REST; no library needed) ---------- */
+function setSession(j) { sess = { access: j.access_token, refresh: j.refresh_token, exp: Date.now() + (j.expires_in - 60) * 1000, uid: j.user && j.user.id, email: j.user && j.user.email }; sessionStorage.setItem("tsc_admin", JSON.stringify(sess)); }
+async function authCall(grant, body) {
+  const r = await fetch(`${BASE}/auth/v1/token?grant_type=${grant}`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error_description || j.msg || "Sign in failed");
+  setSession(j);
+}
+async function token() {
+  if (!sess) return null;
+  if (Date.now() > sess.exp) { try { await authCall("refresh_token", { refresh_token: sess.refresh }); } catch { await logout(); return null; } }
+  return sess.access;
+}
+async function logout() {
+  if (sess) fetch(`${BASE}/auth/v1/logout`, { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + sess.access } }).catch(() => {});
+  sess = null; me = null; sessionStorage.removeItem("tsc_admin"); boot();
+}
+async function api(path, opt = {}) {
+  const t = await token(); if (!t) throw new Error("Please sign in again.");
+  const r = await fetch(`${BASE}/rest/v1/${path}`, { method: opt.method || "GET", headers: { apikey: KEY, Authorization: "Bearer " + t, "Content-Type": "application/json", Prefer: opt.prefer || "return=representation" }, body: opt.body ? JSON.stringify(opt.body) : undefined });
+  const j = await r.json().catch(() => null);
+  if (!r.ok) throw new Error(r.status === 403 || (j && j.code === "42501") ? "You do not have permission to do that." : (j && (j.message || j.hint)) || "Request failed (" + r.status + ")");
+  return j;
+}
+const rpc = (name, args = {}) => api("rpc/" + name, { method: "POST", body: args });
+const audit = (action, table, id) => rpc("log_admin_event", { p_action: action, p_table: table, p_record: String(id), p_details: {} }).catch(() => {});
+
+/* ---------- sections and who may see them (the database enforces the real rules) ---------- */
+const SECTIONS = [
+  ["overview", "Overview", ["knowledge_manager", "prayer_team", "follow_up_team", "administrator"]],
+  ["knowledge", "Knowledge", ["knowledge_manager", "administrator"]],
+  ["bookstore", "Bookstore & media", ["knowledge_manager", "administrator"]],
+  ["prayer", "Prayer requests", ["prayer_team"]],
+  ["visitors", "Visitors", ["follow_up_team"]],
+  ["testimonies", "Testimonies", ["follow_up_team", "administrator"]],
+  ["analytics", "Analytics & AI", ["administrator", "knowledge_manager"]],
+  ["settings", "Settings", ["administrator"]],
+  ["team", "Team & security", []]
+];
+const can = roles => me && (me.role === "super_admin" || roles.includes(me.role));
+
+function nav() {
+  const n = $("#nav"); n.hidden = false;
+  n.innerHTML = SECTIONS.filter(s => can(s[2])).map(s => `<button data-s="${s[0]}" aria-current="${s[0] === current ? "page" : "false"}">${s[1]}</button>`).join("");
+}
+$("#nav").addEventListener("click", e => { const b = e.target.closest("button"); if (b) go(b.dataset.s); });
+$("#out").onclick = logout;
+function go(s) { current = s; nav(); render(); }
+function msg(el, text, kind = "bad") { el.innerHTML = text ? `<div class="msg ${kind}" role="alert">${esc(text)}</div>` : ""; }
+
+/* ---------- generic modal editor ---------- */
+function fieldHtml(f, v) {
+  const id = "f_" + f.k, req = f.req ? " required" : "";
+  if (f.t === "check") return `<label class="check"><input type="checkbox" id="${id}" ${v ? "checked" : ""}><span>${esc(f.label)}</span></label>`;
+  let inner;
+  if (f.t === "textarea") inner = `<textarea id="${id}" rows="${f.rows || 6}"${req}>${esc(v ?? "")}</textarea>`;
+  else if (f.t === "select") inner = `<select id="${id}">${f.opts.map(([a, b]) => `<option value="${esc(a)}" ${String(a) === String(v ?? "") ? "selected" : ""}>${esc(b)}</option>`).join("")}</select>`;
+  else if (f.t === "readonly") inner = `<div class="pre">${esc(v ?? "")}</div>`;
+  else inner = `<input id="${id}" type="${f.t === "tags" ? "text" : f.t}" value="${esc(f.t === "tags" ? (v || []).join(", ") : (v ?? ""))}"${req}>`;
+  return `<div class="field"><label for="${id}">${esc(f.label)}</label>${inner}${f.hint ? `<div class="h">${esc(f.hint)}</div>` : ""}</div>`;
+}
+function readFields(fields, box) {
+  const o = {};
+  for (const f of fields) {
+    if (f.t === "readonly") continue;
+    const el = $("#f_" + f.k, box); if (!el) continue;
+    if (f.t === "check") o[f.k] = el.checked;
+    else if (f.t === "tags") o[f.k] = el.value.split(",").map(s => s.trim()).filter(Boolean);
+    else if (f.t === "number") o[f.k] = el.value === "" ? null : Number(el.value);
+    else { const s = el.value.trim(); o[f.k] = s === "" && !f.req ? null : s; }
+  }
+  return o;
+}
+function editor({ title, fields, values = {}, save, extra = "", onExtra, delFn, readonlyTop = "" }) {
+  const m = document.createElement("div"); m.className = "modal";
+  m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h2>${esc(title)}</h2><div id="me"></div>${readonlyTop}<form>${fields.map(f => fieldHtml(f, values[f.k])).join("")}${extra}
+    <div class="bar"><button class="btn" type="submit">Save</button><button class="btn alt" type="button" data-x>Cancel</button>${delFn ? '<button class="btn danger" type="button" data-del>Delete</button>' : ""}</div></form></div>`;
+  document.body.appendChild(m);
+  const close = () => m.remove();
+  m.addEventListener("click", e => { if (e.target === m || e.target.closest("[data-x]")) close(); });
+  const onKey = e => { if (e.key === "Escape") { close(); document.removeEventListener("keydown", onKey); } }; document.addEventListener("keydown", onKey);
+  if (onExtra) onExtra(m);
+  $("form", m).addEventListener("submit", async e => {
+    e.preventDefault(); const b = $("button[type=submit]", m); b.disabled = true;
+    try { await save(readFields(fields, m)); close(); render(); } catch (err) { msg($("#me", m), err.message); b.disabled = false; }
+  });
+  const d = $("[data-del]", m);
+  if (d) d.onclick = async () => { if (confirm("Delete this permanently? Archiving is usually better.")) { try { await delFn(); close(); render(); } catch (err) { msg($("#me", m), err.message); } } };
+  const first = $("input,textarea,select", m); if (first) first.focus();
+  return m;
+}
+const status = s => `<span class="pill ${["completed", "approved", "available", "published", "closed"].includes(s) ? "ok" : ["rejected", "unavailable"].includes(s) ? "bad" : ""}">${esc(String(s).replace("_", " "))}</span>`;
+
+/* ---------- views ---------- */
+const main = $("#main");
+async function render() {
+  main.innerHTML = '<p class="muted">Loading...</p>';
+  try { await VIEWS[current](); } catch (e) { main.innerHTML = `<div class="msg bad" role="alert">${esc(e.message)}</div>`; }
+}
+const VIEWS = {
+  async overview() {
+    const o = await rpc("admin_overview");
+    const S = (n, l) => `<div class="stat"><b>${o[n] ?? 0}</b><span>${l}</span></div>`;
+    main.innerHTML = `<h2>Overview</h2><div class="grid">${S("conversations_total", "Conversations")}${S("conversations_today", "Today")}${S("conversations_week", "This week")}${S("conversations_month", "This month")}
+      ${can(["prayer_team"]) ? S("prayer_total", "Prayer requests") + S("prayer_new", "New prayer requests") : ""}${can(["follow_up_team"]) ? S("enquiries_total", "Visitor enquiries") + S("enquiries_new", "New enquiries") : ""}
+      ${can(["follow_up_team", "administrator"]) ? S("testimonies_pending", "Testimonies to review") : ""}${S("unanswered_total", "Unanswered questions")}${S("documents_published", "Published documents")}${S("resources_available", "Resources available")}</div>
+      <p class="muted" style="margin-top:14px">Signed in as ${esc(me.name)} (${esc(ROLES[me.role])}).</p>`;
+  },
+
+  async knowledge() {
+    const [docs, cats] = await Promise.all([api("knowledge_documents?select=*&order=updated_at.desc&limit=500"), api("knowledge_categories?select=id,name&order=sort_order")]);
+    const canEdit = can(["knowledge_manager"]);
+    const catOpts = [["", "(none)"], ...cats.map(c => [c.id, c.name])];
+    const F = [{ k: "title", label: "Title", t: "text", req: 1 }, { k: "category_id", label: "Category", t: "select", opts: catOpts }, { k: "language", label: "Language", t: "select", opts: [["en", "English"], ["yo", "Yoruba"], ["fr", "French"]] },
+      { k: "status", label: "Status", t: "select", opts: [["draft", "Draft (not visible to the assistant)"], ["published", "Published"], ["archived", "Archived"]] },
+      { k: "is_core", label: "Core document (always given to the assistant)", t: "check" }, { k: "source_url", label: "Source link (https)", t: "url" },
+      { k: "tags", label: "Tags (comma separated)", t: "tags" }, { k: "content", label: "Content", t: "textarea", rows: 12, req: 1, hint: "Only published documents are used by the public assistant. Write facts only; the assistant will not invent anything beyond this." }];
+    const open = d => editor({ title: d.id ? "Edit document" : "New document", fields: F, values: d, save: v => d.id ? api(`knowledge_documents?id=eq.${d.id}`, { method: "PATCH", body: v }) : api("knowledge_documents", { method: "POST", body: v }), delFn: d.id && canEdit ? () => api(`knowledge_documents?id=eq.${d.id}`, { method: "DELETE" }) : null });
+    main.innerHTML = `<h2>Knowledge documents</h2><div class="bar"><input id="q" placeholder="Search documents" aria-label="Search"><select id="st" aria-label="Status"><option value="">All statuses</option><option>draft</option><option>published</option><option>archived</option></select>${canEdit ? '<button class="btn" id="new">Add document</button>' : ""}</div><div id="l"></div>`;
+    const draw = () => { const q = $("#q").value.toLowerCase(), st = $("#st").value; const f = docs.filter(d => (!st || d.status === st) && (!q || (d.title + d.content).toLowerCase().includes(q)));
+      $("#l").innerHTML = f.length ? f.map((d, i) => `<button class="row" data-i="${docs.indexOf(d)}"><span class="t"><b>${esc(d.title)}</b><small>${esc(cats.find(c => c.id === d.category_id)?.name || "Uncategorised")} · updated ${fmtD(d.updated_at)}${d.is_core ? " · core" : ""}</small></span>${status(d.status)}</button>`).join("") : '<p class="muted">No documents found.</p>'; };
+    draw(); $("#q").oninput = draw; $("#st").onchange = draw;
+    $("#l").onclick = e => { const b = e.target.closest("[data-i]"); if (b && canEdit) open(docs[+b.dataset.i]); else if (b) alert("You can view documents but only the knowledge manager can edit them."); };
+    if (canEdit) $("#new").onclick = () => open({ status: "draft", language: "en", tags: [] });
+    window.__newDoc = (title) => open({ title, status: "draft", language: "en", tags: [], content: "" });
+  },
+
+  async bookstore() {
+    const rows = await api("media_resources?select=*&order=sort_order.asc,title.asc&limit=500");
+    const F = [{ k: "kind", label: "Type", t: "select", opts: [["book", "Book"], ["audio", "Audio message"], ["video", "Video"], ["document", "Document"], ["devotional", "Devotional"], ["other", "Other"]] },
+      { k: "title", label: "Title", t: "text", req: 1 }, { k: "description", label: "Description", t: "textarea", rows: 5 }, { k: "author", label: "Author or speaker", t: "text" },
+      { k: "purchase_url", label: "Selar purchase link (https)", t: "url", hint: "Every BUY NOW button opens this exact link." }, { k: "url", label: "Audio, video or document link (https)", t: "url" },
+      { k: "cover_image_url", label: "Cover image link (https)", t: "url" }, { k: "price_text", label: "Price (type exactly as shown on Selar, or leave empty)", t: "text" },
+      { k: "is_paid", label: "This is a paid product", t: "check" }, { k: "category", label: "Category", t: "text" }, { k: "tags", label: "Tags (comma separated, help the assistant recommend it)", t: "tags" },
+      { k: "published_on", label: "Publication date", t: "date" }, { k: "status", label: "Availability", t: "select", opts: [["available", "Available"], ["unavailable", "Unavailable (hidden)"], ["archived", "Archived"]] },
+      { k: "is_featured", label: "Featured", t: "check" }, { k: "sort_order", label: "Display order (smaller shows first)", t: "number" }];
+    const upload = `<div class="field"><label for="up">Upload a cover image (JPG, PNG or WebP, up to 2 MB)</label><input id="up" type="file" accept="image/jpeg,image/png,image/webp"><div class="h" id="upm"></div></div>`;
+    const open = r => editor({ title: r.id ? "Edit resource" : "Add resource", fields: F, values: r, extra: upload,
+      onExtra: m => $("#up", m).addEventListener("change", async e => {
+        const f = e.target.files[0]; if (!f) return; const note = $("#upm", m);
+        if (f.size > 2097152) { note.textContent = "That file is larger than 2 MB."; return; }
+        note.textContent = "Uploading..."; const t = await token();
+        const path = `${Date.now()}-${f.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+        const res = await fetch(`${BASE}/storage/v1/object/covers/${path}`, { method: "POST", headers: { apikey: KEY, Authorization: "Bearer " + t, "Content-Type": f.type, "x-upsert": "false" }, body: f });
+        if (res.ok) { $("#f_cover_image_url", m).value = `${BASE}/storage/v1/object/public/covers/${path}`; note.textContent = "Uploaded. Save to keep it."; } else note.textContent = "Upload failed. Check your permission and the file type.";
+      }),
+      save: v => r.id ? api(`media_resources?id=eq.${r.id}`, { method: "PATCH", body: v }) : api("media_resources", { method: "POST", body: v }),
+      delFn: r.id ? () => api(`media_resources?id=eq.${r.id}`, { method: "DELETE" }) : null });
+    main.innerHTML = `<h2>Bookstore and media</h2><div class="bar"><input id="q" placeholder="Search" aria-label="Search"><select id="k" aria-label="Type"><option value="">All types</option><option value="book">Books</option><option value="audio">Audio</option><option value="video">Video</option><option value="document">Documents</option><option value="other">Other</option></select><button class="btn" id="new">Add resource</button></div><div id="l"></div>`;
+    const draw = () => { const q = $("#q").value.toLowerCase(), k = $("#k").value; const f = rows.filter(r => (!k || r.kind === k) && (!q || (r.title + (r.description || "") + (r.author || "")).toLowerCase().includes(q)));
+      $("#l").innerHTML = f.length ? f.map(r => `<div class="row">${r.cover_image_url ? `<img class="cover" src="${esc(r.cover_image_url)}" alt="" loading="lazy">` : ""}<button class="t" style="background:none;border:0;text-align:left" data-i="${rows.indexOf(r)}"><b>${esc(r.title)}</b><small>${esc(r.kind)} · ${esc(r.price_text || "no price listed")}${r.is_featured ? " · featured" : ""}${r.purchase_url ? "" : " · no purchase link"}</small></button>${status(r.status)}<span><button class="btn alt sm" data-mv="${rows.indexOf(r)}:-1" aria-label="Move up">&#9650;</button> <button class="btn alt sm" data-mv="${rows.indexOf(r)}:1" aria-label="Move down">&#9660;</button></span></div>`).join("") : '<p class="muted">Nothing found.</p>'; };
+    draw(); $("#q").oninput = draw; $("#k").onchange = draw; $("#new").onclick = () => open({ kind: "book", status: "available", is_paid: true, tags: [], sort_order: (rows.length + 1) });
+    $("#l").onclick = async e => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b.dataset.i) open(rows[+b.dataset.i]);
+      else if (b.dataset.mv) { const [i, d] = b.dataset.mv.split(":").map(Number), a = rows[i], o = rows[i + d]; if (!o) return;
+        try { await Promise.all([api(`media_resources?id=eq.${a.id}`, { method: "PATCH", body: { sort_order: o.sort_order === a.sort_order ? o.sort_order + d : o.sort_order } }), api(`media_resources?id=eq.${o.id}`, { method: "PATCH", body: { sort_order: a.sort_order } })]); render(); } catch (err) { alert(err.message); } }
+    };
+  },
+
+  async prayer() {
+    const rows = await api("prayer_requests?select=*&order=created_at.desc&limit=500");
+    main.innerHTML = `<h2>Prayer requests</h2><p class="muted" style="margin-bottom:10px">Private. Opening a request is recorded in the audit log.</p><div class="bar"><select id="st" aria-label="Status"><option value="">All statuses</option><option value="new">New</option><option value="received">Received</option><option value="follow_up">Under follow-up</option><option value="completed">Completed</option></select></div><div id="l"></div>`;
+    const draw = () => { const st = $("#st").value, f = rows.filter(r => !st || r.status === st);
+      $("#l").innerHTML = f.length ? f.map(r => `<button class="row" data-i="${rows.indexOf(r)}"><span class="t"><b>${esc(r.name || "Anonymous")}</b><small>${fmtD(r.created_at)} · ${r.wants_contact ? "wants contact" : "no contact requested"}${r.follow_up_date ? " · follow up " + esc(r.follow_up_date) : ""}</small></span>${status(r.status)}</button>`).join("") : '<p class="muted">No prayer requests.</p>'; };
+    draw(); $("#st").onchange = draw;
+    $("#l").onclick = e => { const b = e.target.closest("[data-i]"); if (!b) return; const r = rows[+b.dataset.i]; audit("view", "prayer_requests", r.id);
+      editor({ title: "Prayer request", readonlyTop: `<p class="muted">${fmtD(r.created_at)} · ${esc(r.language)} · reference TSC-${esc(r.id.slice(0, 8).toUpperCase())}</p><h3>Request</h3><div class="pre">${esc(r.request_text)}</div><h3>Contact</h3><div class="pre">${r.wants_contact ? esc((r.contact_method) + ": " + (r.contact || "")) : "The visitor did not ask to be contacted."}</div><h3>Pastoral record</h3>`,
+        fields: [{ k: "status", label: "Status", t: "select", opts: [["new", "New"], ["received", "Received"], ["follow_up", "Under follow-up"], ["completed", "Completed"]] }, { k: "follow_up_date", label: "Follow-up date", t: "date" }, { k: "pastoral_notes", label: "Private pastoral notes", t: "textarea", rows: 5 }],
+        values: r, extra: `<label class="check"><input type="checkbox" id="mine" ${r.assigned_to === me.uid ? "checked" : ""}><span>Assigned to me</span></label>`,
+        save: v => { v.assigned_to = $("#mine").checked ? me.uid : (r.assigned_to === me.uid ? null : r.assigned_to); return api(`prayer_requests?id=eq.${r.id}`, { method: "PATCH", body: v }); } }); };
+  },
+
+  async visitors() {
+    const rows = await api("visitor_enquiries?select=*&order=created_at.desc&limit=500");
+    main.innerHTML = `<h2>Visitor enquiries</h2><p class="muted" style="margin-bottom:10px">A submission is an enquiry only. It never makes someone a member.</p><div class="bar"><select id="st" aria-label="Status"><option value="">All statuses</option><option value="new">New</option><option value="contacted">Contacted</option><option value="follow_up">Follow-up</option><option value="closed">Closed</option></select></div><div id="l"></div>`;
+    const draw = () => { const st = $("#st").value, f = rows.filter(r => !st || r.status === st);
+      $("#l").innerHTML = f.length ? f.map(r => `<button class="row" data-i="${rows.indexOf(r)}"><span class="t"><b>${esc(r.name)}</b><small>${esc(r.kind.replace("_", " "))} · ${fmtD(r.created_at)}</small></span>${status(r.status)}</button>`).join("") : '<p class="muted">No enquiries.</p>'; };
+    draw(); $("#st").onchange = draw;
+    $("#l").onclick = e => { const b = e.target.closest("[data-i]"); if (!b) return; const r = rows[+b.dataset.i]; audit("view", "visitor_enquiries", r.id);
+      editor({ title: r.name, readonlyTop: `<p class="muted">${esc(r.kind.replace("_", " "))} · ${fmtD(r.created_at)} · reference TSC-${esc(r.id.slice(0, 8).toUpperCase())}</p><div class="pre">Phone: ${esc(r.phone || "-")}\nEmail: ${esc(r.email || "-")}\nLocation: ${esc(r.location || "-")}\n\n${esc(r.message || "(no message)")}</div><h3>Follow-up</h3>`,
+        fields: [{ k: "status", label: "Status", t: "select", opts: [["new", "New"], ["contacted", "Contacted"], ["follow_up", "Follow-up"], ["closed", "Closed"]] }, { k: "follow_up_date", label: "Follow-up date", t: "date" }, { k: "notes", label: "Private notes", t: "textarea", rows: 5 }],
+        values: r, extra: `<label class="check"><input type="checkbox" id="mine" ${r.assigned_to === me.uid ? "checked" : ""}><span>Assigned to me</span></label>`,
+        save: v => { v.assigned_to = $("#mine").checked ? me.uid : (r.assigned_to === me.uid ? null : r.assigned_to); return api(`visitor_enquiries?id=eq.${r.id}`, { method: "PATCH", body: v }); } }); };
+  },
+
+  async testimonies() {
+    const rows = await api("testimonies?select=*&order=created_at.desc&limit=500");
+    main.innerHTML = `<h2>Testimonies</h2><p class="muted" style="margin-bottom:10px">Nothing is public until you approve it, and only when the visitor gave permission.</p><div class="bar"><select id="st" aria-label="Status"><option value="">All</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="archived">Archived</option></select></div><div id="l"></div>`;
+    const draw = () => { const st = $("#st").value, f = rows.filter(r => !st || r.status === st);
+      $("#l").innerHTML = f.length ? f.map(r => `<button class="row" data-i="${rows.indexOf(r)}"><span class="t"><b>${esc(r.name || "Anonymous")}</b><small>${fmtD(r.created_at)} · ${r.publish_permission ? "permission to publish" : "NO permission to publish"}</small></span>${status(r.status)}</button>`).join("") : '<p class="muted">No testimonies.</p>'; };
+    draw(); $("#st").onchange = draw;
+    $("#l").onclick = e => { const b = e.target.closest("[data-i]"); if (!b) return; const r = rows[+b.dataset.i]; audit("view", "testimonies", r.id);
+      editor({ title: "Review testimony", readonlyTop: `<p class="muted">${fmtD(r.created_at)}${r.reviewed_at ? " · reviewed " + fmtD(r.reviewed_at) : ""} · contact: ${esc(r.contact || "none")}</p><div class="pre">${esc(r.testimony_text)}</div><p class="muted" style="margin:8px 0">${r.publish_permission ? "The visitor allowed publication after review." : "The visitor did NOT allow publication. It cannot be approved."}</p>`,
+        fields: [{ k: "status", label: "Decision", t: "select", opts: [["pending", "Pending"], ["approved", "Approve for publication"], ["rejected", "Reject"], ["archived", "Archive"]] }], values: r,
+        save: v => api(`testimonies?id=eq.${r.id}`, { method: "PATCH", body: v }) }); };
+  },
+
+  async analytics() {
+    const adm = can(["administrator"]);
+    const [un, faq, fail, usage, fb] = await Promise.all([rpc("admin_unanswered", { p_limit: 50 }), adm ? rpc("admin_faq", { p_limit: 25 }) : [], adm ? rpc("admin_failed", { p_limit: 30 }) : [], adm ? rpc("admin_usage", { p_days: 30 }) : [], adm ? rpc("admin_feedback") : null]);
+    const T = (h, rows) => rows.length ? `<div class="scroll"><table><thead><tr>${h.map(x => `<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>` : '<p class="muted">Nothing yet.</p>';
+    main.innerHTML = `<h2>Analytics and AI performance</h2>
+      <div class="card"><h3>Questions the assistant could not answer</h3><p class="muted" style="margin-bottom:8px">Turn these into knowledge documents so the assistant can answer next time.</p>${T(["Question", "When", ""], un.map((u, i) => `<tr><td>${esc(u.question || "")}</td><td>${fmtD(u.created_at)}</td><td>${can(["knowledge_manager"]) ? `<button class="btn alt sm" data-nd="${i}">Add document</button>` : ""}</td></tr>`))}</div>
+      ${adm ? `<div class="card"><h3>Most frequently asked questions (90 days)</h3>${T(["Question", "Times"], faq.map(q => `<tr><td>${esc(q.question)}</td><td>${q.times}</td></tr>`))}</div>
+      <div class="card"><h3>Visitor feedback</h3><p><b>${fb.helpful}</b> helpful · <b>${fb.not_helpful}</b> not helpful</p>${T(["Question", "Comment", "When"], (fb.recent_not_helpful || []).map(r => `<tr><td>${esc(r.question || "")}</td><td>${esc(r.comment || "")}</td><td>${fmtD(r.created_at)}</td></tr>`))}</div>
+      <div class="card"><h3>AI usage (30 days)</h3>${T(["Day", "Replies", "Failures", "Tokens in", "Tokens out", "Avg ms"], usage.map(u => `<tr><td>${esc(u.day)}</td><td>${u.replies}</td><td>${u.failures}</td><td>${u.tokens_in}</td><td>${u.tokens_out}</td><td>${u.avg_latency_ms}</td></tr>`))}</div>
+      <div class="card"><h3>Failed responses</h3>${T(["When", "Error", "Model"], fail.map(f => `<tr><td>${fmtD(f.created_at)}</td><td>${esc(f.error)}</td><td>${esc(f.model || "")}</td></tr>`))}</div>` : ""}`;
+    main.onclick = async e => { const b = e.target.closest("[data-nd]"); if (!b) return; current = "knowledge"; nav(); await VIEWS.knowledge(); window.__newDoc(un[+b.dataset.nd].question || ""); };
+  },
+
+  async settings() {
+    const rows = await api("app_settings?select=*&order=key"), canW = can([]);
+    main.innerHTML = `<h2>System settings</h2><p class="muted" style="margin-bottom:10px">${canW ? "Only the super admin can change settings." : "You can view settings. Only the super admin can change them."} Values are JSON.</p><div id="l"></div>`;
+    $("#l").innerHTML = rows.map((r, i) => `<button class="row" data-i="${i}"><span class="t"><b>${esc(r.key)}</b><small>${esc(JSON.stringify(r.value).slice(0, 90))}</small></span><span class="pill ${r.is_public ? "" : "bad"}">${r.is_public ? "public" : "private"}</span></button>`).join("");
+    $("#l").onclick = e => { const b = e.target.closest("[data-i]"); if (!b) return; const r = rows[+b.dataset.i]; if (!canW) { alert(JSON.stringify(r.value, null, 2)); return; }
+      editor({ title: r.key, fields: [{ k: "value", label: "Value (JSON)", t: "textarea", rows: 10, req: 1 }, { k: "is_public", label: "Public (readable by every visitor)", t: "check" }], values: { value: JSON.stringify(r.value, null, 2), is_public: r.is_public },
+        save: v => { let j; try { j = JSON.parse(v.value); } catch { throw new Error("That is not valid JSON. Text must be in double quotes."); } return api(`app_settings?key=eq.${r.key}`, { method: "PATCH", body: { value: j, is_public: v.is_public, updated_by: me.uid } }); } }); };
+  },
+
+  async team() {
+    const [profiles, logs] = await Promise.all([api("admin_profiles?select=*&order=created_at"), api("audit_logs?select=*&order=created_at.desc&limit=100")]);
+    main.innerHTML = `<h2>Team and security</h2>
+      <div class="card"><h3>Staff</h3><div id="pl">${profiles.map((p, i) => `<button class="row" data-i="${i}"><span class="t"><b>${esc(p.display_name)}</b><small>${esc(ROLES[p.role])}</small></span>${status(p.is_active ? "available" : "unavailable").replace("available", "active").replace("unavailable", "inactive")}</button>`).join("")}</div>
+        <h3>Add staff</h3><p class="muted" style="margin-bottom:8px">First invite the person under Authentication in Supabase, then add their role here using the same email.</p>
+        <form id="add"><div class="field"><label for="ae">Email</label><input id="ae" type="email" required></div><div class="field"><label for="an">Display name</label><input id="an" required></div><div class="field"><label for="ar">Role</label><select id="ar">${Object.entries(ROLES).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></div><div id="am"></div><button class="btn">Add or update</button></form></div>
+      <div class="card"><h3>Security self-test</h3><p class="muted" style="margin-bottom:8px">Checks, as an anonymous visitor, that private data cannot be read and the public services respond.</p><button class="btn" id="st">Run security check</button><div id="sr" style="margin-top:10px"></div></div>
+      <div class="card"><h3>Audit log (last 100)</h3><div class="scroll"><table><thead><tr><th>When</th><th>Role</th><th>Action</th><th>Record</th><th>Details</th></tr></thead><tbody>${logs.map(l => `<tr><td>${fmtD(l.created_at)}</td><td>${esc(l.actor_role || "system")}</td><td>${esc(l.action)} ${esc(l.table_name || "")}</td><td>${esc((l.record_id || "").slice(0, 8))}</td><td>${esc(JSON.stringify(l.details).slice(0, 80))}</td></tr>`).join("")}</tbody></table></div></div>`;
+    $("#add").onsubmit = async e => { e.preventDefault(); try { await rpc("admin_add_profile", { p_email: $("#ae").value, p_name: $("#an").value, p_role: $("#ar").value }); render(); } catch (err) { msg($("#am"), err.message); } };
+    $("#pl").onclick = e => { const b = e.target.closest("[data-i]"); if (!b) return; const p = profiles[+b.dataset.i];
+      editor({ title: p.display_name, fields: [{ k: "role", label: "Role", t: "select", opts: Object.entries(ROLES) }, { k: "is_active", label: "Active (untick to remove access)", t: "check" }], values: p,
+        save: v => { if (p.user_id === me.uid && (!v.is_active || v.role !== "super_admin")) throw new Error("You cannot remove your own super admin access."); return api(`admin_profiles?user_id=eq.${p.user_id}`, { method: "PATCH", body: v }); } }); };
+    $("#st").onclick = securityCheck;
+  }
+};
+
+/* ---------- security self-test (runs as an anonymous visitor) ---------- */
+async function securityCheck() {
+  const out = $("#sr"); out.innerHTML = '<p class="muted">Running...</p>';
+  const anon = { apikey: KEY }, results = [];
+  const add = (name, pass, note = "") => results.push(`<tr><td>${pass ? '<span class="pill ok">PASS</span>' : '<span class="pill bad">FAIL</span>'}</td><td>${esc(name)}</td><td class="muted">${esc(note)}</td></tr>`);
+  for (const t of ["prayer_requests", "visitor_enquiries", "testimonies", "chat_messages", "chat_sessions", "chat_feedback", "knowledge_documents", "knowledge_categories", "admin_profiles", "audit_logs", "rate_limits"]) {
+    try { const r = await fetch(`${BASE}/rest/v1/${t}?select=*&limit=1`, { headers: anon }); const j = await r.json().catch(() => null); add(`Visitors cannot read ${t}`, !(r.ok && Array.isArray(j) && j.length > 0), `HTTP ${r.status}`); } catch { add(`Visitors cannot read ${t}`, false, "network error"); }
+  }
+  for (const t of ["prayer_requests", "visitor_enquiries", "testimonies", "media_resources", "app_settings"]) {
+    try { const r = await fetch(`${BASE}/rest/v1/${t}`, { method: "POST", headers: { ...anon, "Content-Type": "application/json", Prefer: "return=minimal" }, body: "{}" }); add(`Visitors cannot write directly to ${t}`, !r.ok, `HTTP ${r.status}`); } catch { add(`Visitors cannot write directly to ${t}`, false, "network error"); }
+  }
+  try { const r = await fetch(`${BASE}/rest/v1/media_resources?select=status`, { headers: anon }), j = await r.json(); add("Visitors see only available catalogue items", r.ok && j.every(x => x.status === "available"), `${j.length} items`); } catch { add("Catalogue readable by visitors", false); }
+  try { const r = await fetch(`${BASE}/rest/v1/app_settings?select=key`, { headers: anon }), j = await r.json(); add("Private settings (AI instructions) are hidden", r.ok && !j.some(x => x.key === "ai_instructions"), j.map(x => x.key).join(", ")); } catch { add("Settings check", false); }
+  for (const f of ["admin_overview", "check_rate_limit", "search_knowledge", "admin_add_profile"]) {
+    try { const r = await fetch(`${BASE}/rest/v1/rpc/${f}`, { method: "POST", headers: { ...anon, "Content-Type": "application/json" }, body: "{}" }); add(`Visitors cannot run ${f}`, !r.ok, `HTTP ${r.status}`); } catch { add(`Visitors cannot run ${f}`, false); }
+  }
+  try { const r = await fetch(`${BASE}/functions/v1/chat`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY }, body: "{}" }); add("Chat service is reachable and validates input", r.status === 400, `HTTP ${r.status} (expect 400)`); } catch { add("Chat service is reachable", false, "Not deployed or blocked"); }
+  try { const r = await fetch(`${BASE}/functions/v1/submit`, { method: "POST", headers: { "Content-Type": "application/json", apikey: KEY }, body: JSON.stringify({ action: "prayer", request: "test request here" }) }); add("Submit service refuses a prayer request without consent", r.status === 422, `HTTP ${r.status} (expect 422)`); } catch { add("Submit service is reachable", false, "Not deployed or blocked"); }
+  const bad = results.filter(r => r.includes("FAIL")).length;
+  out.innerHTML = `<div class="msg ${bad ? "bad" : "ok"}">${bad ? bad + " check(s) failed. Do not publish until fixed." : "All checks passed."}</div><div class="scroll"><table><tbody>${results.join("")}</tbody></table></div>`;
+}
+
+/* ---------- login and start ---------- */
+function loginView() {
+  $("#who").textContent = "Sign in required"; $("#out").hidden = true; $("#nav").hidden = true;
+  main.innerHTML = `<form class="card login" id="lf"><h2>Staff sign in</h2><div id="lm"></div><div class="field"><label for="em">Email</label><input id="em" type="email" autocomplete="username" required></div><div class="field"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div><button class="btn" id="lb">Sign in</button><p class="muted" style="margin-top:10px">Authorised TSC staff only. Access is recorded.</p></form>`;
+  $("#lf").onsubmit = async e => { e.preventDefault(); $("#lb").disabled = true; try { await authCall("password", { email: $("#em").value.trim(), password: $("#pw").value }); await boot(); } catch (err) { msg($("#lm"), err.message); $("#lb").disabled = false; } };
+}
+async function boot() {
+  if (!BASE || !KEY) { main.innerHTML = '<div class="msg bad">bot-config.js has no Supabase URL and key yet.</div>'; return; }
+  if (!sess) { try { sess = JSON.parse(sessionStorage.getItem("tsc_admin") || "null"); } catch { sess = null; } }
+  if (!sess) return loginView();
+  try {
+    const rows = await api(`admin_profiles?select=display_name,role,is_active&user_id=eq.${sess.uid}`);
+    if (!rows.length || !rows[0].is_active) { sess = null; sessionStorage.removeItem("tsc_admin"); loginView(); msg($("#lm"), "This account has no access to the dashboard. Ask the super admin."); return; }
+    me = { name: rows[0].display_name, role: rows[0].role, uid: sess.uid };
+  } catch (e) { sess = null; sessionStorage.removeItem("tsc_admin"); loginView(); msg($("#lm"), e.message); return; }
+  $("#who").textContent = `${me.name} · ${ROLES[me.role]}`; $("#out").hidden = false;
+  if (!can(SECTIONS.find(s => s[0] === current)[2])) current = SECTIONS.find(s => can(s[2]))[0];
+  nav(); render();
+}
+boot();
+</script>
+</body>
+</html>
